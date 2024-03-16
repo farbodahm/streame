@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "spark-dev-env"
+version = "0.1.0"
+description = "Development environment to test Spark functionalities to implement same behaviour in Streame"
+authors = ["Farbod Ahmadian <farbodahmadian2014@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyspark = "^3.5.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

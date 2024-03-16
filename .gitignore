@@ -19,3 +19,13 @@
 
 # Go workspace file
 go.work
+
+# Devenv
+.pre-commit-config.yaml
+.devenv
+.devcontainer.json
+.devenv.flake.nix
+
+# Python
+.venv
+__pycache__/
