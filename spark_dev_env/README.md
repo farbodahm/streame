@@ -12,7 +12,7 @@ and watermarks)
 To easily setup Spark locally, we are using [Devenv](https://devenv.sh/).
 Also to simulate a streaming environment with
 the ability of easily giving any kind of input,
-we create a TCP connection using a Python script
+we create a TCP socket connection using a Python script
 and use `readStream.format("socket")`
 in Spark to read from that socket. 
 
@@ -21,7 +21,7 @@ the `socket_input.py` script:
 ```sh
 python socket_input.py
 ```
-So that it creates a TCP socket on `localhost:9999`.
+So it creates a TCP socket on `localhost:9999`.
 
 Then easily enable Devenv and run your Spark job:
 ```sh
