@@ -10,11 +10,11 @@ import (
 // Input of each stage, is the output of the previous stage.
 type Stage struct {
 	Id     string
-	Input  chan (types.DataRecord)
-	Output chan (types.DataRecord)
+	Input  chan (types.Record)
+	Output chan (types.Record)
 	Error  chan error
 
-	Executor func(ctx context.Context, data types.DataRecord) ([]types.DataRecord, error)
+	Executor func(ctx context.Context, data types.Record) ([]types.Record, error)
 }
 
 // Run runs the stage.

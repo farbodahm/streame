@@ -28,7 +28,7 @@ type Filter struct {
 
 // ApplyFilter applies the filter to the record.
 // If the filter is not satisfied, it returns nil.
-func ApplyFilter(filter Filter, record *types.DataRecord) *types.DataRecord {
+func ApplyFilter(filter Filter, record *types.Record) *types.Record {
 	switch filter.Operator {
 	case EQUAL:
 		// TODO: casting the value to correct type should happen inside the related logic

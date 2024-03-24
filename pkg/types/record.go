@@ -1,7 +1,7 @@
 package types
 
-// DataRecord represents a single data record in the stream.
-type DataRecord struct {
+// Record represents a single data record in the stream.
+type Record struct {
 	Key      string
 	Value    interface{}
 	Metadata Metadata

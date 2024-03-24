@@ -4,8 +4,8 @@ import "github.com/farbodahm/streame/pkg/types"
 
 // StreamDataFrame represents an un-bounded DataFrame
 type StreamDataFrame struct {
-	SourceStream chan (types.DataRecord)
-	OutputStream chan (types.DataRecord)
+	SourceStream chan (types.Record)
+	OutputStream chan (types.Record)
 	Stages       []Stage
 }
 
