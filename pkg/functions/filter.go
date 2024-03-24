@@ -1,6 +1,8 @@
 package functions
 
-import "github.com/farbodahm/streame/pkg/types"
+import (
+	"github.com/farbodahm/streame/pkg/types"
+)
 
 type FilterOperator int
 
@@ -32,11 +34,11 @@ func ApplyFilter(filter Filter, record *types.Record) *types.Record {
 	switch filter.Operator {
 	case EQUAL:
 		// TODO: casting the value to correct type should happen inside the related logic
-		if record.Value.(map[string]interface{})[filter.ColumnName] == filter.Value {
+		if record.Value.(map[string]string)[filter.ColumnName] == filter.Value {
 			return record
 		}
 	case NOT_EQUAL:
-		if record.Value.(map[string]interface{})[filter.ColumnName] != filter.Value {
+		if record.Value.(map[string]string)[filter.ColumnName] != filter.Value {
 			return record
 		}
 	default:

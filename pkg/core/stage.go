@@ -6,6 +6,8 @@ import (
 	"github.com/farbodahm/streame/pkg/types"
 )
 
+type StageExecutor func(ctx context.Context, data types.Record) ([]types.Record, error)
+
 // Stage represents a processing step.
 // Input of each stage, is the output of the previous stage.
 type Stage struct {
@@ -14,7 +16,7 @@ type Stage struct {
 	Output chan (types.Record)
 	Error  chan error
 
-	Executor func(ctx context.Context, data types.Record) ([]types.Record, error)
+	Executor StageExecutor
 }
 
 // Run runs the stage.
