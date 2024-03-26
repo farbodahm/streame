@@ -1,12 +1,18 @@
 # Streame
 
 - [Streame](#streame)
+  - [Status Tracker](#status-tracker)
   - [Final Workflow Expectations](#final-workflow-expectations)
   - [Engine functional requirements](#engine-functional-requirements)
   - [Starting Examples](#starting-examples)
   - [Contributions](#contributions)
 
 Streame is going to be a fault tolerant stream processor, Eventually!
+
+## Status Tracker
+You can track the roadmap and in-progress features of Streame
+on [Streame Status Tracker](https://github.com/users/farbodahm/projects/1).
+
 
 
 ## Final Workflow Expectations

@@ -1,0 +1,34 @@
+name: Go Tests and Format
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  go:
+    name: Go ${{ matrix.task }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        task: [fmt, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "^1.22.1"
+      - name: Install dependencies
+        run: go mod tidy
+      - name: Run go fmt
+        if: matrix.task == 'fmt'
+        run: |
+          if [ -n "$(go fmt ./...)" ]; then
+            echo "Go files must be formatted with gofmt."
+            exit 1
+          fi
+      - name: Run go test
+        if: matrix.task == 'test'
+        run: go test -v ./...
