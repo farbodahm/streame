@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/types"
@@ -31,9 +32,8 @@ func (sdf *StreamDataFrame) Filter(filter functions.Filter) (DataFrame, error) {
 
 func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 	var input_stream chan types.Record
-	if len(sdf.Stages) == 0 {
-		input_stream = sdf.SourceStream
-	} else {
+	// Wire output of last stage to input of the new stage
+	if len(sdf.Stages) > 0 {
 		input_stream = sdf.Stages[len(sdf.Stages)-1].Output
 	}
 	output_stream := make(chan types.Record)
@@ -49,6 +49,10 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 }
 
 func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
+	if len(sdf.Stages) == 0 {
+		return errors.New("no stages are created")
+	}
+
 	sdf.Stages[0].Input = sdf.SourceStream
 	sdf.Stages[len(sdf.Stages)-1].Output = sdf.OutputStream
 

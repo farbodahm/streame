@@ -3,7 +3,6 @@ package core_test
 import (
 	"context"
 	"errors"
-	"log"
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/core"
@@ -61,7 +60,6 @@ func TestStage_NoopExecutor_WriteInputToOutputWithSameOrder(t *testing.T) {
 }
 
 func TestStage_ExecutorWithError_StageWritesErrorToErrChannel(t *testing.T) {
-	log.Println("Fuck1")
 	input := make(chan types.Record)
 	output := make(chan types.Record)
 	errors_channel := make(chan error)
