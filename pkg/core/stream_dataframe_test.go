@@ -58,3 +58,20 @@ func TestSreamDataFrame_AddStage_ChainStages(t *testing.T) {
 	assert.Equal(t, sdf.Stages[0].Error, sdf.ErrorStream)
 	assert.Equal(t, sdf.Stages[1].Error, sdf.ErrorStream)
 }
+
+func TestSreamDataFrame_Execute_ErrorIfNoStagesDefined(t *testing.T) {
+	input := make(chan types.Record)
+	output := make(chan types.Record)
+	errors := make(chan error)
+
+	sdf := StreamDataFrame{
+		SourceStream: input,
+		OutputStream: output,
+		ErrorStream:  errors,
+		Stages:       []Stage{},
+	}
+
+	err := sdf.Execute(context.Background())
+
+	assert.Error(t, err)
+}
