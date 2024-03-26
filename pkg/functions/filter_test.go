@@ -23,7 +23,7 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 	}
 
 	// Logic to test
-	result_df, err := sdf.Filter(functions.Filter{
+	result_df := sdf.Filter(functions.Filter{
 		ColumnName: "first_name",
 		Value:      "foobar",
 		Operator:   functions.EQUAL,
@@ -49,7 +49,6 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 	result_df.Execute(context.Background())
 
 	// Assertions
-	assert.Nil(t, err)
 	result := <-output
 	assert.Equal(t, result, accepted_record)
 	assert.Equal(t, 0, len(output))

@@ -17,7 +17,7 @@ type StreamDataFrame struct {
 	Stages       []Stage
 }
 
-func (sdf *StreamDataFrame) Filter(filter functions.Filter) (DataFrame, error) {
+func (sdf *StreamDataFrame) Filter(filter functions.Filter) DataFrame {
 	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
 		// TODO: Decide on passing by reference here
 		result := functions.ApplyFilter(filter, &data)
@@ -27,7 +27,7 @@ func (sdf *StreamDataFrame) Filter(filter functions.Filter) (DataFrame, error) {
 		return []types.Record{*result}, nil
 	}
 	sdf.addToStages(executor)
-	return sdf, nil
+	return sdf
 }
 
 func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
