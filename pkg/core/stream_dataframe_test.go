@@ -27,8 +27,8 @@ func TestSreamDataFrame_AddStage_FirstStage(t *testing.T) {
 
 	// Assertions
 	assert.Equal(t, 1, len(sdf.Stages))
-	// assert.Equal(t, input, sdf.Stages[0].Input)
-	// assert.Equal(t, sdf.Stages[0].Output, sdf.OutputStream)
+	assert.Equal(t, input, sdf.Stages[0].Input)
+	assert.Equal(t, sdf.Stages[0].Output, sdf.OutputStream)
 	assert.Equal(t, sdf.Stages[0].Error, sdf.ErrorStream)
 }
 
@@ -52,7 +52,9 @@ func TestSreamDataFrame_AddStage_ChainStages(t *testing.T) {
 
 	// Assertions
 	assert.Equal(t, 2, len(sdf.Stages))
+	assert.Equal(t, input, sdf.Stages[0].Input)
 	assert.Equal(t, sdf.Stages[0].Output, sdf.Stages[1].Input)
+	assert.Equal(t, sdf.Stages[1].Output, sdf.OutputStream)
 	assert.Equal(t, sdf.Stages[0].Error, sdf.ErrorStream)
 	assert.Equal(t, sdf.Stages[1].Error, sdf.ErrorStream)
 }

@@ -32,11 +32,20 @@ func (sdf *StreamDataFrame) Filter(filter functions.Filter) DataFrame {
 
 func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 	var input_stream chan types.Record
-	// Wire output of last stage to input of the new stage
-	if len(sdf.Stages) > 0 {
-		input_stream = sdf.Stages[len(sdf.Stages)-1].Output
+
+	if len(sdf.Stages) == 0 {
+		// Input of the first stage is the input stream of the DataFrame
+		input_stream = sdf.SourceStream
+	} else {
+		// If any stages already exists, create a new channel between
+		// the output of the previous stage and input of this stage.
+		previous_output := make(chan types.Record)
+		sdf.Stages[len(sdf.Stages)-1].Output = previous_output
+		input_stream = previous_output
 	}
-	output_stream := make(chan types.Record)
+
+	// Output of the last stage is the output of the DataFrame
+	output_stream := sdf.OutputStream
 
 	stage := Stage{
 		Id:       uuid.New().String(),
@@ -52,9 +61,6 @@ func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 	if len(sdf.Stages) == 0 {
 		return errors.New("no stages are created")
 	}
-
-	sdf.Stages[0].Input = sdf.SourceStream
-	sdf.Stages[len(sdf.Stages)-1].Output = sdf.OutputStream
 
 	for _, stage := range sdf.Stages {
 		go stage.Run(ctx)
