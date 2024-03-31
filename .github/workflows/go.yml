@@ -20,8 +20,12 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: "^1.22.1"
-      - name: Install dependencies
+      - name: Install environment dependencies
+        run: sudo apt install graphviz # required for pprof
+      - name: Install Go dependencies
         run: go mod tidy
+
+      # jobs
       - name: Run go fmt
         if: matrix.task == 'fmt'
         run: |
@@ -29,6 +33,7 @@ jobs:
             echo "Go files must be formatted with gofmt."
             exit 1
           fi
+
       - name: Run go test
         if: matrix.task == 'test'
         run: go test -v ./...
