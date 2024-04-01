@@ -41,3 +41,9 @@ jobs:
       - name: Take benchmarks
         if: matrix.task == 'benchmark'
         run: bash ./benchmarks/take_benchmarks.sh
+      # Upload benchmark artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-report
+          path: benchmarks/*.svg
+          retention-days: 30
