@@ -6,9 +6,11 @@ benchmarks=$(go test ./...  -list Benchmark | grep ^Benchmark)
 
 for benchmark in $benchmarks; do
     echo "Running $benchmark"
+
+    benchmark_date=$(date +"%Y-%m-%d_%H-%M")
     
-    cpu_profile="benchmarks/${benchmark}_cpu.prof"
-    mem_profile="benchmarks/${benchmark}_mem.prof"
+    cpu_profile="benchmarks/${benchmark_date}_${benchmark}_cpu.prof"
+    mem_profile="benchmarks/${benchmark_date}_${benchmark}_mem.prof"
 
     # Run the benchmark with CPU profiling enabled
     go test -run=^$ -bench "^$benchmark$" github.com/farbodahm/streame/benchmarks -count=10 -cpuprofile="$cpu_profile" -memprofile="$mem_profile"
