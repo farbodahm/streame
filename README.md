@@ -2,6 +2,7 @@
 
 - [Streame](#streame)
   - [Status Tracker](#status-tracker)
+  - [Benchmarks](#benchmarks)
   - [Final Workflow Expectations](#final-workflow-expectations)
   - [Engine functional requirements](#engine-functional-requirements)
   - [Starting Examples](#starting-examples)
@@ -13,7 +14,17 @@ Streame is going to be a fault tolerant stream processor, Eventually!
 You can track the roadmap and in-progress features of Streame
 on [Streame Status Tracker](https://github.com/users/farbodahm/projects/1).
 
+## Benchmarks
+Streame emphasizes the importance of benchmarks, as nothing is reliable
+without numbers.
 
+Each core functionality will have benchmark tests in `benchmarks` module.
+These benchmarks are integrated into our CI process, ensuring automatic
+execution.
+
+Additionally, detailed SVG reports on Memory and CPU performance,
+generated using pprof, are automatically uploaded to the artifacts
+section of each CI pipeline run. 
 
 ## Final Workflow Expectations
 
