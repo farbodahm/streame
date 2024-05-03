@@ -6,16 +6,16 @@ import (
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/core"
-	"github.com/farbodahm/streame/pkg/types"
+	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestStage_NoopExecutor_WriteInputToOutputWithSameOrder(t *testing.T) {
-	input := make(chan types.Record)
-	output := make(chan types.Record)
+	input := make(chan Record)
+	output := make(chan Record)
 	errors := make(chan error)
-	noop_executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
-		return []types.Record{data}, nil
+	noop_executor := func(ctx context.Context, data Record) ([]Record, error) {
+		return []Record{data}, nil
 	}
 
 	stage := core.Stage{
@@ -27,22 +27,32 @@ func TestStage_NoopExecutor_WriteInputToOutputWithSameOrder(t *testing.T) {
 	}
 
 	// Sample Data
-	record1 := types.Record{
-		Key:   "key1",
-		Value: map[string]string{"first_name": "random_name1", "last_name": "random_lastname1"},
+	Record1 := Record{
+		Key: "key1",
+		Data: ValueMap{
+			"first_name": String{Val: "random_name1"},
+			"last_name":  String{Val: "random_lastname1"},
+		},
 	}
-	record2 := types.Record{
-		Key:   "key2",
-		Value: map[string]string{"first_name": "random_name2", "last_name": "random_lastname2"},
+	Record2 := Record{
+		Key: "key2",
+		Data: ValueMap{
+			"first_name": String{Val: "random_name2"},
+			"last_name":  String{Val: "random_lastname2"},
+		},
 	}
-	record3 := types.Record{
-		Key:   "key3",
-		Value: map[string]string{"first_name": "random_name3", "last_name": "random_lastname3"},
+
+	Record3 := Record{
+		Key: "key3",
+		Data: ValueMap{
+			"first_name": String{Val: "random_name3"},
+			"last_name":  String{Val: "random_lastname3"},
+		},
 	}
 	go func() {
-		input <- record1
-		input <- record2
-		input <- record3
+		input <- Record1
+		input <- Record2
+		input <- Record3
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -50,20 +60,20 @@ func TestStage_NoopExecutor_WriteInputToOutputWithSameOrder(t *testing.T) {
 
 	// Assertions
 	result := <-output
-	assert.Equal(t, result, record1)
+	assert.Equal(t, result, Record1)
 	result = <-output
-	assert.Equal(t, result, record2)
+	assert.Equal(t, result, Record2)
 	result = <-output
-	assert.Equal(t, result, record3)
+	assert.Equal(t, result, Record3)
 	cancel()
 	assert.Equal(t, len(output), 0)
 }
 
 func TestStage_ExecutorWithError_StageWritesErrorToErrChannel(t *testing.T) {
-	input := make(chan types.Record)
-	output := make(chan types.Record)
+	input := make(chan Record)
+	output := make(chan Record)
 	errors_channel := make(chan error)
-	executor_with_error := func(ctx context.Context, data types.Record) ([]types.Record, error) {
+	executor_with_error := func(ctx context.Context, data Record) ([]Record, error) {
 		return nil, errors.New("executor with error")
 	}
 
@@ -76,9 +86,12 @@ func TestStage_ExecutorWithError_StageWritesErrorToErrChannel(t *testing.T) {
 	}
 
 	go func() {
-		input <- types.Record{
-			Key:   "key1",
-			Value: map[string]string{"first_name": "random_name1", "last_name": "random_lastname1"},
+		input <- Record{
+			Key: "key1",
+			Data: ValueMap{
+				"first_name": String{Val: "random_name1"},
+				"last_name":  String{Val: "random_lastname1"},
+			},
 		}
 	}()
 

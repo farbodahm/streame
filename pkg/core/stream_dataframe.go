@@ -15,6 +15,7 @@ type StreamDataFrame struct {
 	OutputStream chan (types.Record)
 	ErrorStream  chan (error)
 	Stages       []Stage
+	Schema       types.Schema
 }
 
 func (sdf *StreamDataFrame) Filter(filter functions.Filter) DataFrame {
