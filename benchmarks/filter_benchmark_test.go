@@ -26,7 +26,7 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 
 	// Create stages
 	filter := functions.Filter{
-		ColumnName: "Field1",
+		ColumnName: "field_1",
 		Value:      "foobar",
 		Operator:   functions.NOT_EQUAL,
 	}

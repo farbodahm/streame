@@ -19,7 +19,7 @@ func TestFilter_EqualOperator_AcceptRecord(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
-			"first_name": String{Val: "random_name"},
+			"first_name": String{Val: "foobar"},
 			"last_name":  String{Val: "random_lastname"},
 		},
 	}
