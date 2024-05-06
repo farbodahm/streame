@@ -13,7 +13,7 @@ for benchmark in $benchmarks; do
     mem_profile="benchmarks/${benchmark_date}_${benchmark}_mem.prof"
 
     # Run the benchmark with CPU profiling enabled
-    go test -run=^$ -bench "^$benchmark$" github.com/farbodahm/streame/benchmarks -count=10 -cpuprofile="$cpu_profile" -memprofile="$mem_profile"
+    go test -run=^$ -bench "^$benchmark$" github.com/farbodahm/streame/benchmarks -count=1 -cpuprofile="$cpu_profile" -memprofile="$mem_profile"
 
     echo -e "$benchmark CPU Result:\n"
     go tool pprof -text "$cpu_profile"
@@ -22,4 +22,8 @@ for benchmark in $benchmarks; do
 
     go tool pprof -svg "$cpu_profile" > "$cpu_profile.svg"
     go tool pprof -svg "$mem_profile" > "$mem_profile.svg"
+
+    # Write benchmark duration on a file to be uploaded on PR as comment
+    duration=$(go tool pprof -text test.pprof | grep -oE 'Duration: [0-9]+(\.[0-9]+)?.?' | grep -oE '[0-9]+(\.[0-9]+)?.?')
+    echo -e "$benchmark Duration: $duration" >> benchmark_duration.txt
 done
