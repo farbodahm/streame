@@ -24,6 +24,6 @@ for benchmark in $benchmarks; do
     go tool pprof -svg "$mem_profile" > "$mem_profile.svg"
 
     # Write benchmark duration on a file to be uploaded on PR as comment
-    duration=$(go tool pprof -text test.pprof | grep -oE 'Duration: [0-9]+(\.[0-9]+)?.?' | grep -oE '[0-9]+(\.[0-9]+)?.?')
-    echo -e "$benchmark Duration: $duration" >> benchmark_duration.txt
+    duration=$(go tool pprof -text "$cpu_profile" | grep -oE 'Duration: [0-9]+(\.[0-9]+)?.?' | grep -oE '[0-9]+(\.[0-9]+)?.?')
+    echo -e "- $benchmark Duration: $duration :hourglass_flowing_sand:" >> benchmark_duration.txt
 done
