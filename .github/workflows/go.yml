@@ -55,7 +55,7 @@ jobs:
           retention-days: 30
       # Comment benchmark duration as comment under PR
       - name: Upload benchmark duration as comment
-        if: matrix.task == 'benchmark'
+        if: github.event_name == 'pull_request' && matrix.task == 'benchmark'
         uses: thollander/actions-comment-pull-request@v2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
