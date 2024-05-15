@@ -18,6 +18,25 @@ type StreamDataFrame struct {
 	Schema       types.Schema
 }
 
+// NewStreamDataFrame creates a new StreamDataFrame with the given options
+func NewStreamDataFrame(
+	sourceStream chan (types.Record),
+	outputStream chan (types.Record),
+	errorStream chan error,
+	schema types.Schema) StreamDataFrame {
+	sdf := StreamDataFrame{
+		SourceStream: sourceStream,
+		OutputStream: outputStream,
+		ErrorStream:  errorStream,
+		Stages:       []Stage{},
+		Schema:       schema,
+	}
+
+	sdf.validateSchema()
+	return sdf
+}
+
+// Filter applies filter function to each record of the DataFrame
 func (sdf *StreamDataFrame) Filter(filter functions.Filter) DataFrame {
 	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
 		// TODO: Decide on passing by reference here
@@ -31,6 +50,25 @@ func (sdf *StreamDataFrame) Filter(filter functions.Filter) DataFrame {
 	return sdf
 }
 
+// validateSchema validates that each individual record follows the schema of the DataFrame
+func (sdf *StreamDataFrame) validateSchema() DataFrame {
+	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
+		err := functions.ValidateSchema(sdf.Schema, data)
+
+		if err != nil {
+			panic(err)
+		}
+
+		return []types.Record{data}, nil
+	}
+
+	sdf.addToStages(executor)
+	return sdf
+}
+
+// addToStages adds a new stage to the DataFrame.
+// it wires the output of the previous stage to the input of this stage
+// and the output of this stage to the output of the DataFrame.
 func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 	var input_stream chan types.Record
 
@@ -58,6 +96,8 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 	sdf.Stages = append(sdf.Stages, stage)
 }
 
+// Execute starts the data processing.
+// It simply runs all of the stages.
 func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 	if len(sdf.Stages) == 0 {
 		return errors.New("no stages are created")
