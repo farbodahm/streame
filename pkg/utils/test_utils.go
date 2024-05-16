@@ -19,6 +19,34 @@ func GenerateRandomString(length int) string {
 	return string(b)
 }
 
+// HeavyRecordSchema returns schema for the HeavyRecord
+func HeavyRecordSchema() Schema {
+	return Schema{
+		Columns: Fields{
+			"field_1":  StringType,
+			"field_2":  StringType,
+			"field_3":  StringType,
+			"field_4":  StringType,
+			"field_5":  StringType,
+			"field_6":  StringType,
+			"field_7":  StringType,
+			"field_8":  StringType,
+			"field_9":  StringType,
+			"field_10": StringType,
+			"field_11": StringType,
+			"field_12": StringType,
+			"field_13": StringType,
+			"field_14": StringType,
+			"field_15": StringType,
+			"field_16": StringType,
+			"field_17": StringType,
+			"field_18": StringType,
+			"field_19": StringType,
+			"field_20": StringType,
+		},
+	}
+}
+
 // NewHeavyRecord creates a new heavy Record with random string values
 // with given length.
 // You can use this for benchmark tests.

@@ -17,12 +17,7 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.StreamDataFrame{
-		SourceStream: input,
-		OutputStream: output,
-		ErrorStream:  errors,
-		Stages:       []core.Stage{},
-	}
+	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema())
 
 	// Create stages
 	filter := functions.Filter{
