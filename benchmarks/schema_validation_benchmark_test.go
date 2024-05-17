@@ -25,7 +25,7 @@ func heavy_schema_validation_stages(number_of_records int) {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	sdf.Execute(ctx)
+	go sdf.Execute(ctx)
 
 	for i := 0; i < number_of_records; i++ {
 		<-output

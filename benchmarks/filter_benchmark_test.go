@@ -39,7 +39,7 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	result_df.Execute(ctx)
+	go result_df.Execute(ctx)
 
 	for i := 0; i < number_of_records; i++ {
 		<-output

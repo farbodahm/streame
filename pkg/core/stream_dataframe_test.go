@@ -73,3 +73,28 @@ func TestSreamDataFrame_Execute_ErrorIfNoStagesDefined(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestSreamDataFrame_Execute_CancellingContextStopsExecution(t *testing.T) {
+	input := make(chan Record)
+	output := make(chan Record)
+	errors := make(chan error)
+
+	schema := Schema{
+		Columns: Fields{},
+	}
+	sdf := NewStreamDataFrame(input, output, errors, schema)
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
+	execution_result_chan := make(chan error)
+	go func() {
+		res := sdf.Execute(ctx)
+		execution_result_chan <- res
+	}()
+
+	cancel()
+
+	err := <-execution_result_chan
+	assert.Nil(t, err)
+}

@@ -56,7 +56,7 @@ func (sdf *StreamDataFrame) validateSchema() DataFrame {
 		err := functions.ValidateSchema(sdf.Schema, data)
 
 		if err != nil {
-			panic(err)
+			sdf.ErrorStream <- err
 		}
 
 		return []types.Record{data}, nil
@@ -98,6 +98,7 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 
 // Execute starts the data processing.
 // It simply runs all of the stages.
+// It's a blocking call and returns when the context is cancelled or panics when an error occurs.
 func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 	if len(sdf.Stages) == 0 {
 		return errors.New("no stages are created")
@@ -107,5 +108,12 @@ func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 		go stage.Run(ctx)
 	}
 
-	return nil
+	for {
+		select {
+		case err := <-sdf.ErrorStream:
+			panic(err)
+		case <-ctx.Done():
+			return nil // Exit the loop if the context is cancelled
+		}
+	}
 }
