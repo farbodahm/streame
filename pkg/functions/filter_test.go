@@ -90,12 +90,13 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.StreamDataFrame{
-		SourceStream: input,
-		OutputStream: output,
-		ErrorStream:  errors,
-		Stages:       []core.Stage{},
+	schema := Schema{
+		Columns: Fields{
+			"first_name": StringType,
+			"last_name":  StringType,
+		},
 	}
+	sdf := core.NewStreamDataFrame(input, output, errors, schema)
 
 	// Logic to test
 	result_df := sdf.Filter(functions.Filter{
@@ -130,9 +131,11 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 		}
 	}()
 
-	result_df.Execute(context.Background())
+	ctx := context.Background()
+	go result_df.Execute(ctx)
 
 	// Assertions
+	ctx.Done()
 	result := <-output
 	assert.Equal(t, result, accepted_record)
 	assert.Equal(t, 0, len(output))
@@ -144,12 +147,14 @@ func TestFilter_WithChainedDataFrame_AcceptRelatedRecord(t *testing.T) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.StreamDataFrame{
-		SourceStream: input,
-		OutputStream: output,
-		ErrorStream:  errors,
-		Stages:       []core.Stage{},
+	schema := Schema{
+		Columns: Fields{
+			"first_name": StringType,
+			"last_name":  StringType,
+			"email":      StringType,
+		},
 	}
+	sdf := core.NewStreamDataFrame(input, output, errors, schema)
 
 	// Logic to test
 	result_df := sdf.Filter(functions.Filter{
@@ -195,9 +200,11 @@ func TestFilter_WithChainedDataFrame_AcceptRelatedRecord(t *testing.T) {
 		}
 	}()
 
-	result_df.Execute(context.Background())
+	ctx := context.Background()
+	go result_df.Execute(ctx)
 
 	// Assertions
+	ctx.Done()
 	result := <-output
 	assert.Equal(t, result, accepted_record)
 	assert.Equal(t, 0, len(output))

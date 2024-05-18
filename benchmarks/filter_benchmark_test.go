@@ -17,12 +17,7 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.StreamDataFrame{
-		SourceStream: input,
-		OutputStream: output,
-		ErrorStream:  errors,
-		Stages:       []core.Stage{},
-	}
+	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema())
 
 	// Create stages
 	filter := functions.Filter{
@@ -44,7 +39,7 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	result_df.Execute(ctx)
+	go result_df.Execute(ctx)
 
 	for i := 0; i < number_of_records; i++ {
 		<-output
