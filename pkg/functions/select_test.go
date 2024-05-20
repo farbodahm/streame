@@ -1,8 +1,10 @@
 package functions_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/farbodahm/streame/pkg/core"
 	"github.com/farbodahm/streame/pkg/functions"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -74,4 +76,101 @@ func TestReduceSchema_RemoveColumnsIncorrectly_ReturnColumnNotFoundError(t *test
 
 	assert.EqualError(t, err, expected_error)
 	assert.Equal(t, Schema{}, actual_schema)
+}
+
+// Integration tests inside DataFrame
+func TestSelect_WithDataFrame_SelectOnlyExpectedFields(t *testing.T) {
+	input := make(chan Record)
+	output := make(chan Record)
+	errors := make(chan error)
+
+	schema := Schema{
+		Columns: Fields{
+			"first_name": StringType,
+			"last_name":  StringType,
+			"age":        IntType,
+		},
+	}
+	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+
+	// Logic to test
+	result_df := sdf.Select("first_name", "age")
+
+	// Generate sample data
+	go func() {
+		records := []Record{
+			{
+				Key: "key1",
+				Data: ValueMap{
+					"first_name": String{Val: "random_name"},
+					"last_name":  String{Val: "random_lastname"},
+					"age":        Integer{Val: 10},
+				},
+			},
+			{
+				Key: "key2",
+				Data: ValueMap{
+					"first_name": String{Val: "foobar"},
+					"last_name":  String{Val: "random_lastname"},
+					"age":        Integer{Val: 20},
+				},
+			},
+			{
+				Key: "key3",
+				Data: ValueMap{
+					"first_name": String{Val: "random_name2"},
+					"last_name":  String{Val: "random_lastname2"},
+					"age":        Integer{Val: 30},
+				},
+			},
+		}
+		for _, record := range records {
+			input <- record
+		}
+	}()
+
+	ctx := context.Background()
+	go result_df.Execute(ctx)
+
+	// Assertions
+	expected_records := []Record{
+		{
+			Key: "key1",
+			Data: ValueMap{
+				"first_name": String{Val: "random_name"},
+				"age":        Integer{Val: 10},
+			},
+		},
+		{
+			Key: "key2",
+			Data: ValueMap{
+				"first_name": String{Val: "foobar"},
+				"age":        Integer{Val: 20},
+			},
+		},
+		{
+			Key: "key3",
+			Data: ValueMap{
+				"first_name": String{Val: "random_name2"},
+				"age":        Integer{Val: 30},
+			},
+		},
+	}
+
+	for _, expected_record := range expected_records {
+		result := <-output
+		assert.Equal(t, expected_record, result)
+	}
+	ctx.Done()
+	assert.Equal(t, 0, len(output))
+	assert.Equal(t, 0, len(sdf.ErrorStream))
+	assert.Equal(t, 0, len(errors))
+	assert.Equal(t, Schema{
+		Columns: Fields{
+			"first_name": StringType,
+			"age":        IntType,
+		},
+	}, result_df.GetSchema())
+	// Assert that select did not modify the original schema
+	assert.Equal(t, schema, sdf.GetSchema())
 }
