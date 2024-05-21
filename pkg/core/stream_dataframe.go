@@ -43,7 +43,7 @@ func (sdf *StreamDataFrame) Select(columns ...string) DataFrame {
 
 	new_schema, err := functions.ReduceSchema(sdf.Schema, columns...)
 	if err != nil {
-		sdf.ErrorStream <- err
+		panic(err)
 	}
 
 	new_sdf := StreamDataFrame{
@@ -126,6 +126,7 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 // It simply runs all of the stages.
 // It's a blocking call and returns when the context is cancelled or panics when an error occurs.
 func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
+	slog.Info("Executing processor with", "len(stages)", len(sdf.Stages))
 	if len(sdf.Stages) == 0 {
 		return errors.New("no stages are created")
 	}
@@ -139,6 +140,7 @@ func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 		case err := <-sdf.ErrorStream:
 			panic(err)
 		case <-ctx.Done():
+			slog.Info("Processor execution completed")
 			return nil // Exit the loop if the context is cancelled
 		}
 	}
