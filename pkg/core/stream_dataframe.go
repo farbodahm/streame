@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/types"
@@ -34,6 +35,31 @@ func NewStreamDataFrame(
 
 	sdf.validateSchema()
 	return sdf
+}
+
+// Select only selects the given columns from the DataFrame
+func (sdf *StreamDataFrame) Select(columns ...string) DataFrame {
+	slog.Info("Adding", "stage", "select", "columns", columns)
+
+	new_schema, err := functions.ReduceSchema(sdf.Schema, columns...)
+	if err != nil {
+		panic(err)
+	}
+
+	new_sdf := StreamDataFrame{
+		SourceStream: sdf.SourceStream,
+		OutputStream: sdf.OutputStream,
+		ErrorStream:  sdf.ErrorStream,
+		Stages:       sdf.Stages,
+		Schema:       new_schema,
+	}
+	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
+		result := functions.ApplySelect(data, columns...)
+		return []types.Record{result}, nil
+	}
+
+	new_sdf.addToStages(executor)
+	return &new_sdf
 }
 
 // Filter applies filter function to each record of the DataFrame
@@ -100,6 +126,7 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 // It simply runs all of the stages.
 // It's a blocking call and returns when the context is cancelled or panics when an error occurs.
 func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
+	slog.Info("Executing processor with", "len(stages)", len(sdf.Stages))
 	if len(sdf.Stages) == 0 {
 		return errors.New("no stages are created")
 	}
@@ -113,7 +140,13 @@ func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 		case err := <-sdf.ErrorStream:
 			panic(err)
 		case <-ctx.Done():
+			slog.Info("Processor execution completed")
 			return nil // Exit the loop if the context is cancelled
 		}
 	}
+}
+
+// GetSchema returns the schema of the DataFrame
+func (sdf *StreamDataFrame) GetSchema() types.Schema {
+	return sdf.Schema
 }
