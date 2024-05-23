@@ -49,6 +49,6 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 
 func BenchmarkFilterFunction(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		heavy_filter_stages(100, 1000)
+		heavy_filter_stages(200, 3000)
 	}
 }

@@ -35,6 +35,6 @@ func heavy_schema_validation_stages(number_of_records int) {
 
 func BenchmarkSchemaValidation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		heavy_schema_validation_stages(2000)
+		heavy_schema_validation_stages(3000)
 	}
 }

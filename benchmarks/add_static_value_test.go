@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/core"
-	"github.com/farbodahm/streame/pkg/types"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/farbodahm/streame/pkg/utils"
 )
@@ -21,11 +20,11 @@ func heavy_static_column_stages(number_of_stages int, number_of_records int) {
 	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema())
 
 	// Create stages
-	result_df := sdf.AddStaticColumn("column_0", types.String{Val: "static_value"})
+	result_df := sdf.AddStaticColumn("column_0", String{Val: "static_value"})
 	for i := 1; i < number_of_stages; i++ {
 		result_df = result_df.AddStaticColumn(
 			fmt.Sprintf("column_%d", i+1),
-			types.String{Val: "static_value"},
+			String{Val: "static_value"},
 		)
 	}
 
