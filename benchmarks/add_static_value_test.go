@@ -2,17 +2,17 @@ package benchmarks
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/core"
-	"github.com/farbodahm/streame/pkg/functions"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/farbodahm/streame/pkg/utils"
 )
 
-// heavy_filter_stages creates a heavy struct with lots of
-// fields and filter stages to take benchmark
-func heavy_filter_stages(number_of_stages int, number_of_records int) {
+// heavy_static_column_stages creates lots of stages for adding
+// a static column to the dataframe
+func heavy_static_column_stages(number_of_stages int, number_of_records int) {
 	input := make(chan Record)
 	output := make(chan Record)
 	errors := make(chan error)
@@ -20,21 +20,17 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema())
 
 	// Create stages
-	filter := functions.Filter{
-		ColumnName: "field_1",
-		Value:      "foobar",
-		Operator:   functions.NOT_EQUAL,
+	result_df := sdf.AddStaticColumn("column_0", String{Val: "static_value"})
+	for i := 1; i < number_of_stages; i++ {
+		result_df = result_df.AddStaticColumn(
+			fmt.Sprintf("column_%d", i+1),
+			String{Val: "static_value"},
+		)
 	}
-	result_df := sdf.Filter(filter)
-	for i := 0; i < number_of_stages; i++ {
-		result_df = result_df.Filter(filter)
-	}
-
-	heavy_record := utils.NewHeavyRecord(20)
 
 	go func() {
 		for i := 0; i < number_of_records; i++ {
-			input <- heavy_record
+			input <- utils.NewHeavyRecord(100)
 		}
 	}()
 
@@ -47,8 +43,8 @@ func heavy_filter_stages(number_of_stages int, number_of_records int) {
 	cancel()
 }
 
-func BenchmarkFilterFunction(b *testing.B) {
+func BenchmarkAddStaticColumnFunction(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		heavy_filter_stages(200, 3000)
+		heavy_static_column_stages(200, 3000)
 	}
 }

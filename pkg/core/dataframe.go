@@ -11,6 +11,7 @@ import (
 type DataFrame interface {
 	Filter(filter functions.Filter) DataFrame
 	Select(columns ...string) DataFrame
+	AddStaticColumn(name string, value types.ColumnValue) DataFrame
 	Execute(ctx context.Context) error
 	GetSchema() types.Schema
 }

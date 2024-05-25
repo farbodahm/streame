@@ -76,6 +76,31 @@ func (sdf *StreamDataFrame) Filter(filter functions.Filter) DataFrame {
 	return sdf
 }
 
+// AddStaticColumn adds a static column to the DataFrame
+func (sdf *StreamDataFrame) AddStaticColumn(name string, value types.ColumnValue) DataFrame {
+	slog.Info("Adding", "stage", "static-column", "name", name)
+
+	new_schema, err := functions.AddColumnToSchema(sdf.Schema, name, value.Type())
+	if err != nil {
+		panic(err)
+	}
+
+	new_sdf := StreamDataFrame{
+		SourceStream: sdf.SourceStream,
+		OutputStream: sdf.OutputStream,
+		ErrorStream:  sdf.ErrorStream,
+		Stages:       sdf.Stages,
+		Schema:       new_schema,
+	}
+	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
+		result := functions.AddStaticColumnToRecord(data, name, value)
+		return []types.Record{result}, nil
+	}
+
+	new_sdf.addToStages(executor)
+	return &new_sdf
+}
+
 // validateSchema validates that each individual record follows the schema of the DataFrame
 func (sdf *StreamDataFrame) validateSchema() DataFrame {
 	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
