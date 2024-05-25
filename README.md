@@ -3,9 +3,8 @@
 - [Streame](#streame)
   - [Status Tracker](#status-tracker)
   - [Benchmarks](#benchmarks)
+  - [Available Functionalities](#available-functionalities)
   - [Final Workflow Expectations](#final-workflow-expectations)
-  - [Engine functional requirements](#engine-functional-requirements)
-  - [Starting Examples](#starting-examples)
   - [Contributions](#contributions)
 
 Streame is going to be a fault tolerant stream processor, Eventually!
@@ -24,7 +23,16 @@ execution.
 
 Additionally, detailed SVG reports on Memory and CPU performance,
 generated using pprof, are automatically uploaded to the artifacts
-section of each CI pipeline run. 
+section of each CI pipeline run.
+
+## Available Functionalities
+
+- [x] Schema Validation
+- [x] Filter
+- [x] Select
+- [x] Add static column
+- [ ] Join
+- [ ] Aggregation
 
 ## Final Workflow Expectations
 
@@ -38,30 +46,9 @@ shortly after having the main functionalities in place.
 - Load Test (Ex. K6S)
 - Fault Tolerance Test (Ex. chaos-mesh)
 
-## Engine functional requirements
-
-Again, thinking loudly, I will write down the functional requirements
-that a stream processor can have to shape up the next steps that *may* be implemented.
-
-- Single node
-    - [ ] simple filter
-    - [ ] simple join
-    - [ ] simple aggregation
-    - [ ] windowing
-    - [ ] watermarking
-    - [ ] trigger
-- Distributed (2 or more nodes)
-    - [ ]  simple filter
-    - [ ]  simple join
-    - [ ]  simple aggregation
-  
-## Starting Examples
-
-- Word counter
-- Sum scores for leader board
-
 ## Contributions
 
 This project is getting started as fun and for learning; and it may
 end up in something important to be used on Production; So feel free
 to contribute to it as you like ;)
+You can find the roadmap [here](https://github.com/users/farbodahm/projects/1).
