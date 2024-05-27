@@ -101,6 +101,31 @@ func (sdf *StreamDataFrame) AddStaticColumn(name string, value types.ColumnValue
 	return &new_sdf
 }
 
+// Rename renames a column in the DataFrame
+func (sdf *StreamDataFrame) Rename(old_name string, new_name string) DataFrame {
+	slog.Info("Adding", "stage", "rename", "name", old_name, "new_name", new_name)
+
+	new_schema, err := functions.RenameColumnInSchema(sdf.Schema, old_name, new_name)
+	if err != nil {
+		panic(err)
+	}
+
+	new_sdf := StreamDataFrame{
+		SourceStream: sdf.SourceStream,
+		OutputStream: sdf.OutputStream,
+		ErrorStream:  sdf.ErrorStream,
+		Stages:       sdf.Stages,
+		Schema:       new_schema,
+	}
+	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
+		result := functions.RenameColumnInRecord(data, old_name, new_name)
+		return []types.Record{result}, nil
+	}
+
+	new_sdf.addToStages(executor)
+	return &new_sdf
+}
+
 // validateSchema validates that each individual record follows the schema of the DataFrame
 func (sdf *StreamDataFrame) validateSchema() DataFrame {
 	executor := func(ctx context.Context, data types.Record) ([]types.Record, error) {
