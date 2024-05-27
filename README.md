@@ -31,6 +31,7 @@ section of each CI pipeline run.
 - [x] Filter
 - [x] Select
 - [x] Add static column
+- [x] Add column rename
 - [ ] Join
 - [ ] Aggregation
 
