@@ -12,6 +12,7 @@ type DataFrame interface {
 	Filter(filter functions.Filter) DataFrame
 	Select(columns ...string) DataFrame
 	AddStaticColumn(name string, value types.ColumnValue) DataFrame
+	Rename(old_name string, new_name string) DataFrame
 	Execute(ctx context.Context) error
 	GetSchema() types.Schema
 }

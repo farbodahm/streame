@@ -1,9 +1,11 @@
 package functions_test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
+	"github.com/farbodahm/streame/pkg/core"
 	"github.com/farbodahm/streame/pkg/functions"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
@@ -99,4 +101,151 @@ func TestRenameColumnInRecord_ValidName_ColumnIsRenamed(t *testing.T) {
 		"last_name":  String{Val: "random_lastname"},
 		"age":        Integer{Val: 10},
 	}, record.Data)
+}
+
+// Integration tests inside DataFrame
+func TestRename_ValidNames_ColumnIsRenamedInSchemaAndRecords(t *testing.T) {
+	input := make(chan Record)
+	output := make(chan Record)
+	errors := make(chan error)
+
+	schema := Schema{
+		Columns: Fields{
+			"first_name": StringType,
+			"last_name":  StringType,
+			"age":        IntType,
+		},
+	}
+	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+
+	// Logic to test
+	result_df := sdf.Rename("last_name", "family_name")
+
+	// Generate sample data
+	go func() {
+		records := []Record{
+			{
+				Key: "key1",
+				Data: ValueMap{
+					"first_name": String{Val: "random_name"},
+					"last_name":  String{Val: "random_lastname"},
+					"age":        Integer{Val: 10},
+				},
+			},
+			{
+				Key: "key2",
+				Data: ValueMap{
+					"first_name": String{Val: "foobar"},
+					"last_name":  String{Val: "random_lastname"},
+					"age":        Integer{Val: 20},
+				},
+			},
+			{
+				Key: "key3",
+				Data: ValueMap{
+					"first_name": String{Val: "random_name2"},
+					"last_name":  String{Val: "random_lastname2"},
+					"age":        Integer{Val: 30},
+				},
+			},
+		}
+		for _, record := range records {
+			input <- record
+		}
+	}()
+
+	ctx := context.Background()
+	go result_df.Execute(ctx)
+
+	// Assertions
+	expected_records := []Record{
+		{
+			Key: "key1",
+			Data: ValueMap{
+				"first_name":  String{Val: "random_name"},
+				"family_name": String{Val: "random_lastname"},
+				"age":         Integer{Val: 10},
+			},
+		},
+		{
+			Key: "key2",
+			Data: ValueMap{
+				"first_name":  String{Val: "foobar"},
+				"family_name": String{Val: "random_lastname"},
+				"age":         Integer{Val: 20},
+			},
+		},
+		{
+			Key: "key3",
+			Data: ValueMap{
+				"first_name":  String{Val: "random_name2"},
+				"family_name": String{Val: "random_lastname2"},
+				"age":         Integer{Val: 30},
+			},
+		},
+	}
+
+	for _, expected_record := range expected_records {
+		result := <-output
+		assert.Equal(t, expected_record, result)
+	}
+	ctx.Done()
+	assert.Equal(t, 0, len(output))
+	assert.Equal(t, 0, len(sdf.ErrorStream))
+	assert.Equal(t, 0, len(errors))
+	assert.Equal(t, Schema{
+		Columns: Fields{
+			"first_name":  StringType,
+			"family_name": StringType,
+			"age":         IntType,
+		},
+	}, result_df.GetSchema())
+	// Assert that renaming column did not modify the original schema
+	assert.Equal(t, schema, sdf.GetSchema())
+}
+
+func TestRename_AddAlreadyExistingColumn_PanicsWithAlreadyExistsColumn(t *testing.T) {
+	input := make(chan Record)
+	output := make(chan Record)
+	errors := make(chan error)
+
+	schema := Schema{
+		Columns: Fields{
+			"first_name": StringType,
+			"last_name":  StringType,
+			"age":        IntType,
+		},
+	}
+	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+
+	assert.Panicsf(t,
+		func() {
+			sdf.Rename("last_name", "first_name")
+		},
+		functions.ErrColumnAlreadyExists,
+		"first_name",
+	)
+}
+
+func TestRename_AddColumnNameNotExists_PanicsWithColumnNotFound(t *testing.T) {
+	input := make(chan Record)
+	output := make(chan Record)
+	errors := make(chan error)
+
+	schema := Schema{
+		Columns: Fields{
+			"first_name": StringType,
+			"last_name":  StringType,
+			"age":        IntType,
+		},
+	}
+	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+
+	assert.Panicsf(t,
+		func() {
+			sdf.Rename("random_name", "first_name")
+		},
+		functions.ErrColumnNotFound,
+		"random_name",
+	)
 }
