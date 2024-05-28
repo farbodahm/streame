@@ -157,14 +157,14 @@ func TestSreamDataFrame_SchemaValidation_AcceptRecordFollowSchema(t *testing.T) 
 		input <- record_2
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	go sdf.Execute(ctx)
 
-	ctx.Done()
 	result_1 := <-output
 	result_2 := <-output
 
 	// Assertions
+	cancel()
 	assert.Equal(t, result_1.Key, "key1")
 	assert.Equal(t, result_2.Key, "key2")
 	assert.Equal(t, 0, len(errors))

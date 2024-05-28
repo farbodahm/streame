@@ -154,7 +154,7 @@ func TestRename_ValidNames_ColumnIsRenamedInSchemaAndRecords(t *testing.T) {
 		}
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	go result_df.Execute(ctx)
 
 	// Assertions
@@ -189,7 +189,7 @@ func TestRename_ValidNames_ColumnIsRenamedInSchemaAndRecords(t *testing.T) {
 		result := <-output
 		assert.Equal(t, expected_record, result)
 	}
-	ctx.Done()
+	cancel()
 	assert.Equal(t, 0, len(output))
 	assert.Equal(t, 0, len(sdf.ErrorStream))
 	assert.Equal(t, 0, len(errors))

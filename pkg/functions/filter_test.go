@@ -131,12 +131,12 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 		}
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	go result_df.Execute(ctx)
 
 	// Assertions
-	ctx.Done()
 	result := <-output
+	cancel()
 	assert.Equal(t, result, accepted_record)
 	assert.Equal(t, 0, len(output))
 	assert.Equal(t, 0, len(sdf.ErrorStream))
@@ -200,12 +200,12 @@ func TestFilter_WithChainedDataFrame_AcceptRelatedRecord(t *testing.T) {
 		}
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	go result_df.Execute(ctx)
 
 	// Assertions
-	ctx.Done()
 	result := <-output
+	cancel()
 	assert.Equal(t, result, accepted_record)
 	assert.Equal(t, 0, len(output))
 	assert.Equal(t, 0, len(sdf.ErrorStream))
