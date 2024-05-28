@@ -130,7 +130,7 @@ func TestAddStaticColumn_AddIntegerField_AddColumnToSchemaAndRecords(t *testing.
 		}
 	}()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	go result_df.Execute(ctx)
 
 	// Assertions
@@ -165,7 +165,7 @@ func TestAddStaticColumn_AddIntegerField_AddColumnToSchemaAndRecords(t *testing.
 		result := <-output
 		assert.Equal(t, expected_record, result)
 	}
-	ctx.Done()
+	cancel()
 	assert.Equal(t, 0, len(output))
 	assert.Equal(t, 0, len(sdf.ErrorStream))
 	assert.Equal(t, 0, len(errors))
