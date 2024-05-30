@@ -2,6 +2,7 @@ package benchmarks
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/core"
@@ -16,7 +17,8 @@ func heavy_select_stages(number_of_stages int, number_of_records int) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema())
+	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema(),
+		core.WithLogLevel(slog.LevelError))
 
 	result_df := sdf.Select("field_1", "field_2", "field_3", "field_4",
 		"field_5", "field_6", "field_7", "field_8", "field_9",

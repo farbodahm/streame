@@ -3,6 +3,7 @@ package benchmarks
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/core"
@@ -17,7 +18,8 @@ func heavy_static_column_stages(number_of_stages int, number_of_records int) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema())
+	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema(),
+		core.WithLogLevel(slog.LevelError))
 
 	// Create stages
 	result_df := sdf.AddStaticColumn("column_0", String{Val: "static_value"})
