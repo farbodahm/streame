@@ -18,6 +18,7 @@ type StreamDataFrame struct {
 	ErrorStream  chan (error)
 	Stages       []Stage
 	Schema       types.Schema
+	Configs      *Config
 }
 
 // NewStreamDataFrame creates a new StreamDataFrame with the given options
@@ -25,17 +26,29 @@ func NewStreamDataFrame(
 	sourceStream chan (types.Record),
 	outputStream chan (types.Record),
 	errorStream chan error,
-	schema types.Schema) StreamDataFrame {
+	schema types.Schema,
+	options ...Option,
+) StreamDataFrame {
+	// Create config with default values
+	config := Config{
+		LogLevel: slog.LevelInfo,
+	}
+	// Functional Option pattern
+	for _, option := range options {
+		option(&config)
+	}
+
 	sdf := StreamDataFrame{
 		SourceStream: sourceStream,
 		OutputStream: outputStream,
 		ErrorStream:  errorStream,
 		Stages:       []Stage{},
 		Schema:       schema,
+		Configs:      &config,
 	}
 
 	sdf.validateSchema()
-	utils.InitLogger(slog.LevelInfo)
+	utils.InitLogger(config.LogLevel)
 	return sdf
 }
 
