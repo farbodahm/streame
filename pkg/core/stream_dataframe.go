@@ -7,6 +7,7 @@ import (
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/types"
+	"github.com/farbodahm/streame/pkg/utils"
 	"github.com/google/uuid"
 )
 
@@ -17,6 +18,7 @@ type StreamDataFrame struct {
 	ErrorStream  chan (error)
 	Stages       []Stage
 	Schema       types.Schema
+	Configs      *Config
 }
 
 // NewStreamDataFrame creates a new StreamDataFrame with the given options
@@ -24,22 +26,35 @@ func NewStreamDataFrame(
 	sourceStream chan (types.Record),
 	outputStream chan (types.Record),
 	errorStream chan error,
-	schema types.Schema) StreamDataFrame {
+	schema types.Schema,
+	options ...Option,
+) StreamDataFrame {
+	// Create config with default values
+	config := Config{
+		LogLevel: slog.LevelInfo,
+	}
+	// Functional Option pattern
+	for _, option := range options {
+		option(&config)
+	}
+
 	sdf := StreamDataFrame{
 		SourceStream: sourceStream,
 		OutputStream: outputStream,
 		ErrorStream:  errorStream,
 		Stages:       []Stage{},
 		Schema:       schema,
+		Configs:      &config,
 	}
 
 	sdf.validateSchema()
+	utils.InitLogger(config.LogLevel)
 	return sdf
 }
 
 // Select only selects the given columns from the DataFrame
 func (sdf *StreamDataFrame) Select(columns ...string) DataFrame {
-	slog.Info("Adding", "stage", "select", "columns", columns)
+	utils.Logger.Info("Adding", "stage", "select", "columns", columns)
 
 	new_schema, err := functions.ReduceSchema(sdf.Schema, columns...)
 	if err != nil {
@@ -78,7 +93,7 @@ func (sdf *StreamDataFrame) Filter(filter functions.Filter) DataFrame {
 
 // AddStaticColumn adds a static column to the DataFrame
 func (sdf *StreamDataFrame) AddStaticColumn(name string, value types.ColumnValue) DataFrame {
-	slog.Info("Adding", "stage", "static-column", "name", name)
+	utils.Logger.Info("Adding", "stage", "static-column", "name", name)
 
 	new_schema, err := functions.AddColumnToSchema(sdf.Schema, name, value.Type())
 	if err != nil {
@@ -103,7 +118,7 @@ func (sdf *StreamDataFrame) AddStaticColumn(name string, value types.ColumnValue
 
 // Rename renames a column in the DataFrame
 func (sdf *StreamDataFrame) Rename(old_name string, new_name string) DataFrame {
-	slog.Info("Adding", "stage", "rename", "name", old_name, "new_name", new_name)
+	utils.Logger.Info("Adding", "stage", "rename", "name", old_name, "new_name", new_name)
 
 	new_schema, err := functions.RenameColumnInSchema(sdf.Schema, old_name, new_name)
 	if err != nil {
@@ -176,7 +191,7 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 // It simply runs all of the stages.
 // It's a blocking call and returns when the context is cancelled or panics when an error occurs.
 func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
-	slog.Info("Executing processor with", "len(stages)", len(sdf.Stages))
+	utils.Logger.Info("Executing processor with", "len(stages)", len(sdf.Stages))
 	if len(sdf.Stages) == 0 {
 		return errors.New("no stages are created")
 	}
@@ -190,7 +205,7 @@ func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 		case err := <-sdf.ErrorStream:
 			panic(err)
 		case <-ctx.Done():
-			slog.Info("Processor execution completed")
+			utils.Logger.Info("Processor execution completed")
 			return nil // Exit the loop if the context is cancelled
 		}
 	}
