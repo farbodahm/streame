@@ -1,10 +1,13 @@
 # Interesting Challenges
 
 - [Interesting Challenges](#interesting-challenges)
-  - [Challenges](#challenges)
-    - [Ensuring Unique Schemas for Each Stage](#ensuring-unique-schemas-for-each-stage)
-      - [Problem](#problem)
-      - [Solution](#solution)
+	- [Challenges](#challenges)
+		- [Ensuring Unique Schemas for Each Stage](#ensuring-unique-schemas-for-each-stage)
+			- [Problem](#problem)
+			- [Solution](#solution)
+		- [Allow Flexible Optional Parameters for Config](#allow-flexible-optional-parameters-for-config)
+			- [Problem](#problem-1)
+			- [Solution](#solution-1)
 
 While writing a stream processor, you may encounter different challenges.
 I will try to document the interesting ones here.
@@ -75,3 +78,30 @@ func (sdf *StreamDataFrame) Select(columns ...string) DataFrame {
 }
 
 ```
+
+
+### Allow Flexible Optional Parameters for Config
+#### Problem
+
+Stream processors often have numerous optional configuration options,
+including log levels, Kafka configurations, join types, etc. There is
+a need for a flexible and scalable pattern to manage these options
+while maintaining code readability.
+
+#### Solution
+
+Inspired by open-source projects like Prometheus [source](https://github.com/prometheus/client_golang/blob/main/prometheus/promhttp/option.go),
+I found that the [*Functional Options*](https://github.com/tmrts/go-patterns/blob/master/idiom/functional-options.md)
+pattern is effective. It is scalable and keeps the code clean
+providing an easy interface for clients:
+
+```go
+sdf := NewStreamDataFrame(
+	input, output, errors, schema,
+	WithLogLevel(slog.LevelError),
+	WithName("processor-1"),
+	WithKafkaPort(9092))
+```
+
+You can find implementation of Functional Options 
+[here](../pkg/core/config.go).
