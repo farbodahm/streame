@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/farbodahm/streame/pkg/types"
-	"github.com/farbodahm/streame/pkg/utils"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -22,7 +21,6 @@ func RecordToProtoStruct(record types.Record) (structpb.Struct, error) {
 		case types.StringType:
 			pbValue = structpb.NewStringValue(v.ToString())
 		default:
-			utils.Logger.Error("Failed to convert record to protubuf struct", "id", record.Key)
 			return structpb.Struct{}, fmt.Errorf(ErrConvertingToProtoStruct, v.Type())
 		}
 
