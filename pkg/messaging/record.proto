@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package messaging;
+
+option go_package = "./pkg/messaging/";
+
+import "google/protobuf/struct.proto";
+
+// RecordData holds data of a record
+message RecordData {
+  google.protobuf.Value data = 1;
+}
