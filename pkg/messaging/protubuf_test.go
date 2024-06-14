@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/messaging"
+	"github.com/farbodahm/streame/pkg/types"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
@@ -116,4 +117,40 @@ func TestRecordDataToProtocolBuffers_RecordWithInvalidType_ReturnErrorConverting
 
 	assert.EqualError(t, err, expected_error)
 	assert.Nil(t, result)
+}
+
+func TestProtoStructToRecordData_ValidRecord_RecordShouldConvertToValueMap(t *testing.T) {
+	protoStruct := structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
+			"last_name":  {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
+			"age":        {Kind: &structpb.Value_NumberValue{NumberValue: 23}},
+		},
+	}
+	expected_struct := ValueMap{
+		"first_name": String{Val: "foobar"},
+		"last_name":  String{Val: "random_lastname"},
+		"age":        Integer{Val: 23},
+	}
+
+	result, err := messaging.ProtoStructToRecordData(&protoStruct)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected_struct, result)
+}
+
+func TestProtoStructToRecordData_InvalidProtoType_ReturnErrorConvertingToValueMap(t *testing.T) {
+	protoStruct := structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"first_name":    {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
+			"last_name":     {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
+			"invalid_field": {Kind: &structpb.Value_StructValue{}},
+		},
+	}
+	expected_error := fmt.Sprintf(messaging.ErrConvertingToValueMap, "&{<nil>}")
+
+	result, err := messaging.ProtoStructToRecordData(&protoStruct)
+
+	assert.EqualError(t, err, expected_error)
+	assert.Equal(t, types.ValueMap{}, result)
 }
