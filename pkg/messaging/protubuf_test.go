@@ -36,7 +36,7 @@ func (t TestType) Type() ColumnType {
 	return 9999
 }
 
-func TestRecordDataToProtoStruct_ValidRecord_RecordShouldConvertToProtobufStruct(t *testing.T) {
+func TestValueMapToProtoStruct_ValidRecord_RecordShouldConvertToProtobufStruct(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
@@ -46,7 +46,7 @@ func TestRecordDataToProtoStruct_ValidRecord_RecordShouldConvertToProtobufStruct
 		},
 	}
 
-	result, err := messaging.RecordDataToProtoStruct(record.Data)
+	result, err := messaging.ValueMapToProtoStruct(record.Data)
 	expected_struct := structpb.Struct{
 		Fields: map[string]*structpb.Value{
 			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
@@ -59,7 +59,7 @@ func TestRecordDataToProtoStruct_ValidRecord_RecordShouldConvertToProtobufStruct
 	assert.Equal(t, expected_struct.AsMap(), result.AsMap())
 }
 
-func TestRecordDataToProtoStruct_RecordWithInvalidType_ReturnErrorConvertingToProtoStruct(t *testing.T) {
+func TestValueMapToProtoStruct_RecordWithInvalidType_ReturnErrorConvertingToProtoStruct(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
@@ -69,14 +69,14 @@ func TestRecordDataToProtoStruct_RecordWithInvalidType_ReturnErrorConvertingToPr
 		},
 	}
 
-	result, err := messaging.RecordDataToProtoStruct(record.Data)
+	result, err := messaging.ValueMapToProtoStruct(record.Data)
 	expected_error := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
 
 	assert.EqualError(t, err, expected_error)
 	assert.Equal(t, structpb.Struct{}.Fields, result.Fields)
 }
 
-func TestRecordDataToProtocolBuffers_ValidRecord_RecordMarshalsToProtobuf(t *testing.T) {
+func TestValueMapToProtocolBuffers_ValidRecord_RecordMarshalsToProtobuf(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
@@ -93,7 +93,7 @@ func TestRecordDataToProtocolBuffers_ValidRecord_RecordMarshalsToProtobuf(t *tes
 		},
 	}
 
-	result, err := messaging.RecordDataToProtocolBuffers(record.Data)
+	result, err := messaging.ValueMapToProtocolBuffers(record.Data)
 	assert.Nil(t, err)
 
 	var resultDeserialized messaging.RecordData
@@ -102,7 +102,7 @@ func TestRecordDataToProtocolBuffers_ValidRecord_RecordMarshalsToProtobuf(t *tes
 	assert.Equal(t, expected_struct.Fields, resultDeserialized.GetData().GetStructValue().Fields)
 }
 
-func TestRecordDataToProtocolBuffers_RecordWithInvalidType_ReturnErrorConvertingToProtoStruct(t *testing.T) {
+func TestValueMapToProtocolBuffers_RecordWithInvalidType_ReturnErrorConvertingToProtoStruct(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
@@ -112,14 +112,14 @@ func TestRecordDataToProtocolBuffers_RecordWithInvalidType_ReturnErrorConverting
 		},
 	}
 
-	result, err := messaging.RecordDataToProtocolBuffers(record.Data)
+	result, err := messaging.ValueMapToProtocolBuffers(record.Data)
 	expected_error := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
 
 	assert.EqualError(t, err, expected_error)
 	assert.Nil(t, result)
 }
 
-func TestProtoStructToRecordData_ValidRecord_RecordShouldConvertToValueMap(t *testing.T) {
+func TestProtoStructToValueMap_ValidRecord_RecordShouldConvertToValueMap(t *testing.T) {
 	protoStruct := structpb.Struct{
 		Fields: map[string]*structpb.Value{
 			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
@@ -133,13 +133,13 @@ func TestProtoStructToRecordData_ValidRecord_RecordShouldConvertToValueMap(t *te
 		"age":        Integer{Val: 23},
 	}
 
-	result, err := messaging.ProtoStructToRecordData(&protoStruct)
+	result, err := messaging.ProtoStructToValueMap(&protoStruct)
 
 	assert.Nil(t, err)
 	assert.Equal(t, expected_struct, result)
 }
 
-func TestProtoStructToRecordData_InvalidProtoType_ReturnErrorConvertingToValueMap(t *testing.T) {
+func TestProtoStructToValueMap_InvalidProtoType_ReturnErrorConvertingToValueMap(t *testing.T) {
 	protoStruct := structpb.Struct{
 		Fields: map[string]*structpb.Value{
 			"first_name":    {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
@@ -149,7 +149,7 @@ func TestProtoStructToRecordData_InvalidProtoType_ReturnErrorConvertingToValueMa
 	}
 	expected_error := fmt.Sprintf(messaging.ErrConvertingToValueMap, "&{<nil>}")
 
-	result, err := messaging.ProtoStructToRecordData(&protoStruct)
+	result, err := messaging.ProtoStructToValueMap(&protoStruct)
 
 	assert.EqualError(t, err, expected_error)
 	assert.Equal(t, types.ValueMap{}, result)

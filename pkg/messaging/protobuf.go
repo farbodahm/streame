@@ -11,8 +11,8 @@ import (
 var ErrConvertingToProtoStruct = "Failed converting to Proto struct, unsupported ColumnType: '%v'"
 var ErrConvertingToValueMap = "Failed converting to ValueMap, unsupported ColumnType: '%v'"
 
-// RecordDataToProtoStruct converts data of given record to google.protobuf.Struct
-func RecordDataToProtoStruct(data types.ValueMap) (structpb.Struct, error) {
+// ValueMapToProtoStruct converts data of given record to google.protobuf.Struct
+func ValueMapToProtoStruct(data types.ValueMap) (structpb.Struct, error) {
 	fields := make(map[string]*structpb.Value)
 	for k, v := range data {
 		var pbValue *structpb.Value
@@ -32,9 +32,9 @@ func RecordDataToProtoStruct(data types.ValueMap) (structpb.Struct, error) {
 	return structpb.Struct{Fields: fields}, nil
 }
 
-// RecordDataToProtocolBuffers marshals given record to protocol buffers
-func RecordDataToProtocolBuffers(data types.ValueMap) ([]byte, error) {
-	protoStruct, err := RecordDataToProtoStruct(data)
+// ValueMapToProtocolBuffers marshals given record to protocol buffers
+func ValueMapToProtocolBuffers(data types.ValueMap) ([]byte, error) {
+	protoStruct, err := ValueMapToProtoStruct(data)
 	if err != nil {
 		return nil, err
 	}
@@ -47,9 +47,9 @@ func RecordDataToProtocolBuffers(data types.ValueMap) ([]byte, error) {
 	return proto.Marshal(recordMessage)
 }
 
-// ProtoStructToRecordData converts google.protobuf.Struct to a ValueMap
-// This is opposite of RecordDataToProtoStruct
-func ProtoStructToRecordData(protoStruct *structpb.Struct) (types.ValueMap, error) {
+// ProtoStructToValueMap converts google.protobuf.Struct to a ValueMap
+// This is opposite of ValueMapToProtoStruct
+func ProtoStructToValueMap(protoStruct *structpb.Struct) (types.ValueMap, error) {
 	data := types.ValueMap{}
 	for k, v := range protoStruct.Fields {
 		switch v.GetKind().(type) {
