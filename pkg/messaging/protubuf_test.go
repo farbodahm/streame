@@ -2,6 +2,7 @@ package messaging_test
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/messaging"
@@ -153,4 +154,57 @@ func TestProtoStructToValueMap_InvalidProtoType_ReturnErrorConvertingToValueMap(
 
 	assert.EqualError(t, err, expected_error)
 	assert.Equal(t, types.ValueMap{}, result)
+}
+
+func TestProtocolBuffersToValueMap_ValidRecord_ProtobufUnmarshalsToValueMap(t *testing.T) {
+	protoStruct := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
+		},
+	}
+	expected_struct := ValueMap{
+		"first_name": String{Val: "foobar"},
+		"last_name":  String{Val: "random_lastname"},
+		"age":        Integer{Val: 23},
+	}
+
+	value := structpb.NewStructValue(protoStruct)
+	record := &messaging.RecordData{
+		Data: value,
+	}
+	data, err := proto.Marshal(record)
+	if err != nil {
+		log.Fatalf("Failed to serialize: %v", err)
+	}
+
+	result, err := messaging.ProtocolBuffersToValueMap(data)
+	assert.Nil(t, err)
+	assert.Equal(t, expected_struct, result)
+}
+
+func TestProtocolBuffersToValueMap_InValidProtoByte_ReturnErr(t *testing.T) {
+	invalidData := []byte{0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F}
+
+	result, err := messaging.ProtocolBuffersToValueMap(invalidData)
+
+	assert.EqualError(t, err, "proto: cannot parse invalid wire-format data")
+	assert.Nil(t, result)
+}
+
+func TestProtocolBuffersSerialization_ValidRecord_ValeMapSerializesAndDeserializesEndToEnd(t *testing.T) {
+	data := ValueMap{
+		"first_name": String{Val: "foobar"},
+		"last_name":  String{Val: "random_lastname"},
+		"age":        Integer{Val: 23},
+	}
+
+	protoMessage, err := messaging.ValueMapToProtocolBuffers(data)
+	assert.Nil(t, err)
+
+	result, err := messaging.ProtocolBuffersToValueMap(protoMessage)
+
+	assert.Nil(t, err)
+	assert.Equal(t, result, data)
 }

@@ -68,3 +68,14 @@ func ProtoStructToValueMap(protoStruct *structpb.Struct) (types.ValueMap, error)
 
 	return data, nil
 }
+
+// ProtocolBuffersToValueMap unmarshals protocol buffers data to a ValueMap
+func ProtocolBuffersToValueMap(data []byte) (types.ValueMap, error) {
+	recordMessage := RecordData{}
+	err := proto.Unmarshal(data, &recordMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	return ProtoStructToValueMap(recordMessage.Data.GetStructValue())
+}
