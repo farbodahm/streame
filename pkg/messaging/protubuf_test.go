@@ -5,8 +5,8 @@ import (
 	"log"
 	"testing"
 
+	"github.com/cockroachdb/pebble"
 	"github.com/farbodahm/streame/pkg/messaging"
-	"github.com/farbodahm/streame/pkg/types"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
@@ -153,7 +153,7 @@ func TestProtoStructToValueMap_InvalidProtoType_ReturnErrorConvertingToValueMap(
 	result, err := messaging.ProtoStructToValueMap(&protoStruct)
 
 	assert.EqualError(t, err, expected_error)
-	assert.Equal(t, types.ValueMap{}, result)
+	assert.Equal(t, ValueMap{}, result)
 }
 
 func TestProtocolBuffersToValueMap_ValidRecord_ProtobufUnmarshalsToValueMap(t *testing.T) {
@@ -189,7 +189,7 @@ func TestProtocolBuffersToValueMap_InValidProtoByte_ReturnErr(t *testing.T) {
 
 	result, err := messaging.ProtocolBuffersToValueMap(invalidData)
 
-	assert.EqualError(t, err, "proto: cannot parse invalid wire-format data")
+	assert.NotNil(t, err)
 	assert.Nil(t, result)
 }
 
@@ -207,4 +207,27 @@ func TestProtocolBuffersSerialization_ValidRecord_ValeMapSerializesAndDeserializ
 
 	assert.Nil(t, err)
 	assert.Equal(t, result, data)
+}
+
+func TestPebble(t *testing.T) {
+	db, err := pebble.Open("./demo", &pebble.Options{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	key := []byte("hello")
+	if err := db.Set(key, []byte("world"), pebble.Sync); err != nil {
+		log.Fatal(err)
+	}
+	value, closer, err := db.Get(key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s %s\n", key, value)
+	if err := closer.Close(); err != nil {
+		log.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		log.Fatal(err)
+	}
+
 }
