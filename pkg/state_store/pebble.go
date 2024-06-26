@@ -48,6 +48,8 @@ func (p PebbleStateStore) Get(key string) (types.Record, error) {
 }
 
 // Set inserts an object to state store
+// NOTE: Set overwrites any previous value for that key; it doesn't do
+// an upsert.
 func (p PebbleStateStore) Set(key string, value types.Record) error {
 	// TODO: Decide about metadata in record
 	data, err := messaging.ValueMapToProtocolBuffers(value.Data)
