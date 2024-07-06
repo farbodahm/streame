@@ -6,10 +6,14 @@ import (
 	"log/slog"
 
 	"github.com/farbodahm/streame/pkg/functions"
+	"github.com/farbodahm/streame/pkg/functions/join"
 	"github.com/farbodahm/streame/pkg/types"
 	"github.com/farbodahm/streame/pkg/utils"
 	"github.com/google/uuid"
 )
+
+// Make sure StreamDataFrame implements DataFrame
+var _ DataFrame = &StreamDataFrame{}
 
 // StreamDataFrame represents an un-bounded DataFrame
 type StreamDataFrame struct {
@@ -75,6 +79,11 @@ func (sdf *StreamDataFrame) Select(columns ...string) DataFrame {
 
 	new_sdf.addToStages(executor)
 	return &new_sdf
+}
+
+// Join joins the DataFrame with another DataFrame based on the given join type and condition
+func (sdf *StreamDataFrame) Join(other DataFrame, how join.JoinType, on join.JoinCondition) DataFrame {
+	panic("Not Implemented")
 }
 
 // Filter applies filter function to each record of the DataFrame
