@@ -17,7 +17,7 @@ func heavy_schema_validation_stages(number_of_records int) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema(),
+	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema(), "test-stream",
 		core.WithLogLevel(slog.LevelError))
 
 	go func() {

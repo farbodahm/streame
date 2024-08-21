@@ -20,5 +20,6 @@ type Record struct {
 
 // Metadata contains metadata for a data record, such as timestamps.
 type Metadata struct {
-	Timestamp int64 // Unix timestamp
+	Timestamp int64  // Unix timestamp
+	Stream    string // Name of the stream record belongs to
 }

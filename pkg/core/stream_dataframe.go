@@ -20,6 +20,7 @@ type StreamDataFrame struct {
 	SourceStream chan (types.Record)
 	OutputStream chan (types.Record)
 	ErrorStream  chan (error)
+	Name         string
 	Stages       []Stage
 	Schema       types.Schema
 	Configs      *Config
@@ -31,6 +32,7 @@ func NewStreamDataFrame(
 	outputStream chan (types.Record),
 	errorStream chan error,
 	schema types.Schema,
+	streamName string,
 	options ...Option,
 ) StreamDataFrame {
 	// Create config with default values
@@ -46,6 +48,7 @@ func NewStreamDataFrame(
 		SourceStream: sourceStream,
 		OutputStream: outputStream,
 		ErrorStream:  errorStream,
+		Name:         streamName,
 		Stages:       []Stage{},
 		Schema:       schema,
 		Configs:      &config,
@@ -158,6 +161,9 @@ func (sdf *StreamDataFrame) validateSchema() DataFrame {
 		if err != nil {
 			sdf.ErrorStream <- err
 		}
+
+		// If schema was valid, add name of the stream record belongs to
+		data.Metadata.Stream = sdf.Name
 
 		return []types.Record{data}, nil
 	}

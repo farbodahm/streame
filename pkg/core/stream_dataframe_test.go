@@ -16,7 +16,7 @@ func TestSreamDataFrame_AddStage_FirstStage(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema)
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
 	executor := func(ctx context.Context, data Record) ([]Record, error) {
 		return nil, nil
 	}
@@ -39,7 +39,7 @@ func TestSreamDataFrame_AddStage_ChainStages(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema)
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
 	executor := func(ctx context.Context, data Record) ([]Record, error) {
 		return nil, nil
 	}
@@ -82,7 +82,7 @@ func TestSreamDataFrame_Execute_CancellingContextStopsExecution(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema)
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)

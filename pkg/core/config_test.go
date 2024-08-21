@@ -10,7 +10,7 @@ import (
 )
 
 func TestStreamDataFrame_ConfigDefaultValues_DefaultValuesAssignedCorrectly(t *testing.T) {
-	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{})
+	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{}, "test-stream")
 
 	default_config := Config{
 		LogLevel: slog.LevelInfo,
@@ -20,7 +20,7 @@ func TestStreamDataFrame_ConfigDefaultValues_DefaultValuesAssignedCorrectly(t *t
 }
 
 func TestStreamDataFrame_ConfigWithLogLevel_LogLevelAssignedCorrectly(t *testing.T) {
-	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{},
+	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{}, "test-stream",
 		WithLogLevel(slog.LevelError),
 	)
 
