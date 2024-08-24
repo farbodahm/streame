@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/farbodahm/streame/pkg/functions/join"
+	"github.com/farbodahm/streame/pkg/types"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -112,5 +113,142 @@ func TestMergeSchema_BothEmptySchemas_SuccessfullyMerges(t *testing.T) {
 
 	result, err := join.MergeSchema(left, right)
 	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+}
+
+func TestMergeRecords_BothRecordsHaveUniqueKeys_MergesCorrectly(t *testing.T) {
+	left := Record{
+		Key: "left",
+		Data: ValueMap{
+			"first_name": String{Val: "John"},
+			"last_name":  String{Val: "Doe"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1",
+		},
+	}
+
+	right := Record{
+		Key: "right",
+		Data: ValueMap{
+			"age":    Integer{Val: 30},
+			"gender": String{Val: "Male"},
+		},
+		Metadata: Metadata{
+			Stream: "stream2",
+		},
+	}
+
+	expected := Record{
+		Key: "left-right",
+		Data: ValueMap{
+			"first_name": String{Val: "John"},
+			"last_name":  String{Val: "Doe"},
+			"age":        Integer{Val: 30},
+			"gender":     String{Val: "Male"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1-stream2",
+		},
+	}
+
+	result := join.MergeRecords(left, right)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestMergeRecords_EmptyLeftRecord_MergesCorrectly(t *testing.T) {
+	left := types.Record{
+		Key:  "left",
+		Data: types.ValueMap{},
+		Metadata: types.Metadata{
+			Stream: "stream1",
+		},
+	}
+
+	right := types.Record{
+		Key: "right",
+		Data: types.ValueMap{
+			"name": types.String{Val: "Alice"},
+			"age":  types.Integer{Val: 28},
+		},
+		Metadata: types.Metadata{
+			Stream: "stream2",
+		},
+	}
+
+	expected := types.Record{
+		Key: "left-right",
+		Data: types.ValueMap{
+			"name": types.String{Val: "Alice"},
+			"age":  types.Integer{Val: 28},
+		},
+		Metadata: types.Metadata{
+			Stream: "stream1-stream2",
+		},
+	}
+
+	result := join.MergeRecords(left, right)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestMergeRecords_EmptyRightRecord_MergesCorrectly(t *testing.T) {
+	left := types.Record{
+		Key: "left",
+		Data: types.ValueMap{
+			"name": types.String{Val: "Alice"},
+			"age":  types.Integer{Val: 28},
+		},
+		Metadata: types.Metadata{
+			Stream: "stream1",
+		},
+	}
+
+	right := types.Record{
+		Key:  "right",
+		Data: types.ValueMap{},
+		Metadata: types.Metadata{
+			Stream: "stream2",
+		},
+	}
+
+	expected := types.Record{
+		Key: "left-right",
+		Data: types.ValueMap{
+			"name": types.String{Val: "Alice"},
+			"age":  types.Integer{Val: 28},
+		},
+		Metadata: types.Metadata{
+			Stream: "stream1-stream2",
+		},
+	}
+
+	result := join.MergeRecords(left, right)
+
+	assert.Equal(t, expected, result)
+}
+
+func TestMergeRecords_BothRecordsEmpty_ReturnsEmptyRecord(t *testing.T) {
+	left := types.Record{
+		Key:      "left",
+		Data:     types.ValueMap{},
+		Metadata: types.Metadata{Stream: "stream1"},
+	}
+
+	right := types.Record{
+		Key:      "right",
+		Data:     types.ValueMap{},
+		Metadata: types.Metadata{Stream: "stream2"},
+	}
+
+	expected := types.Record{
+		Key:      "left-right",
+		Data:     types.ValueMap{},
+		Metadata: types.Metadata{Stream: "stream1-stream2"},
+	}
+
+	result := join.MergeRecords(left, right)
+
 	assert.Equal(t, expected, result)
 }
