@@ -148,7 +148,7 @@ func TestMergeRecords_BothRecordsHaveUniqueKeys_MergesCorrectly(t *testing.T) {
 			"gender":     String{Val: "Male"},
 		},
 		Metadata: Metadata{
-			Stream: "stream1-stream2",
+			Stream: "stream1-stream2" + join.JoinedStreamSuffix,
 		},
 	}
 
@@ -184,7 +184,7 @@ func TestMergeRecords_EmptyLeftRecord_MergesCorrectly(t *testing.T) {
 			"age":  types.Integer{Val: 28},
 		},
 		Metadata: types.Metadata{
-			Stream: "stream1-stream2",
+			Stream: "stream1-stream2" + join.JoinedStreamSuffix,
 		},
 	}
 
@@ -220,7 +220,7 @@ func TestMergeRecords_EmptyRightRecord_MergesCorrectly(t *testing.T) {
 			"age":  types.Integer{Val: 28},
 		},
 		Metadata: types.Metadata{
-			Stream: "stream1-stream2",
+			Stream: "stream1-stream2" + join.JoinedStreamSuffix,
 		},
 	}
 
@@ -245,7 +245,7 @@ func TestMergeRecords_BothRecordsEmpty_ReturnsEmptyRecord(t *testing.T) {
 	expected := types.Record{
 		Key:      "left-right",
 		Data:     types.ValueMap{},
-		Metadata: types.Metadata{Stream: "stream1-stream2"},
+		Metadata: types.Metadata{Stream: "stream1-stream2" + join.JoinedStreamSuffix},
 	}
 
 	result := join.MergeRecords(left, right)

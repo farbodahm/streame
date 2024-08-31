@@ -21,3 +21,7 @@ type JoinCondition struct {
 	LeftKey  string
 	RightKey string
 }
+
+// JoinedStreamSuffix gets appended to the stream name of the SDF for the joined stream
+// to distinguish it from the source streams
+const JoinedStreamSuffix = "-J"

@@ -37,7 +37,7 @@ func MergeRecords(left, right types.Record) types.Record {
 		Key:  left.Key + "-" + right.Key,
 		Data: types.ValueMap{},
 		Metadata: types.Metadata{
-			Stream: left.Metadata.Stream + "-" + right.Metadata.Stream,
+			Stream: left.Metadata.Stream + "-" + right.Metadata.Stream + JoinedStreamSuffix,
 		},
 	}
 
