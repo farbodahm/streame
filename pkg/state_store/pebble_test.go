@@ -4,6 +4,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/cockroachdb/pebble"
 	"github.com/farbodahm/streame/pkg/state_store"
@@ -25,6 +26,10 @@ func TestPebbleStateStore_ValidRecordWithoutMetadata_WriteAndReadToPebbleSuccess
 			"last_name":  String{Val: "random_lastname"},
 			"age":        Integer{Val: 10},
 		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: time.Now(),
+		},
 	}
 
 	err = ss.Set(record.Key, record)
@@ -32,7 +37,10 @@ func TestPebbleStateStore_ValidRecordWithoutMetadata_WriteAndReadToPebbleSuccess
 
 	actual, err := ss.Get(record.Key)
 	assert.Nil(t, err)
-	assert.Equal(t, record, actual)
+	assert.Equal(t, record.Key, actual.Key)
+	assert.Equal(t, record.Data, actual.Data)
+	assert.Equal(t, record.Metadata.Stream, actual.Metadata.Stream)
+	assert.Equal(t, record.Metadata.Timestamp.Unix(), actual.Metadata.Timestamp.Unix())
 
 	err = ss.Close()
 	assert.Nil(t, err)
@@ -63,6 +71,10 @@ func TestPebbleStateStore_SetAndGetMultipleRecords_Successfully(t *testing.T) {
 				"last_name":  String{Val: "Doe"},
 				"age":        Integer{Val: 30},
 			},
+			Metadata: Metadata{
+				Stream:    "test_stream1",
+				Timestamp: time.Now(),
+			},
 		},
 		{
 			Key: "key2",
@@ -70,6 +82,10 @@ func TestPebbleStateStore_SetAndGetMultipleRecords_Successfully(t *testing.T) {
 				"first_name": String{Val: "Jane"},
 				"last_name":  String{Val: "Doe"},
 				"age":        Integer{Val: 25},
+			},
+			Metadata: Metadata{
+				Stream:    "test_stream2",
+				Timestamp: time.Now(),
 			},
 		},
 	}
@@ -82,7 +98,10 @@ func TestPebbleStateStore_SetAndGetMultipleRecords_Successfully(t *testing.T) {
 	for _, expected := range records {
 		actual, err := ss.Get(expected.Key)
 		assert.Nil(t, err)
-		assert.Equal(t, expected, actual)
+		assert.Equal(t, expected.Key, actual.Key)
+		assert.Equal(t, expected.Data, actual.Data)
+		assert.Equal(t, expected.Metadata.Stream, actual.Metadata.Stream)
+		assert.Equal(t, expected.Metadata.Timestamp.Unix(), actual.Metadata.Timestamp.Unix())
 	}
 
 	err = ss.Close()
@@ -100,6 +119,10 @@ func TestPebbleStateStore_GetAfterClose_Panics(t *testing.T) {
 			"first_name": String{Val: "John"},
 			"last_name":  String{Val: "Doe"},
 			"age":        Integer{Val: 30},
+		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: time.Now(),
 		},
 	}
 
@@ -124,6 +147,10 @@ func TestPebbleStateStore_UpdateExistingRecord_Successfully(t *testing.T) {
 			"last_name":  String{Val: "Doe"},
 			"age":        Integer{Val: 30},
 		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: time.Now(),
+		},
 	}
 
 	err = ss.Set(record.Key, record)
@@ -136,6 +163,10 @@ func TestPebbleStateStore_UpdateExistingRecord_Successfully(t *testing.T) {
 			"last_name":  String{Val: "Doe"},
 			"age":        Integer{Val: 31},
 		},
+		Metadata: Metadata{
+			Stream:    "updated_stream",
+			Timestamp: time.Now(),
+		},
 	}
 
 	err = ss.Set(updatedRecord.Key, updatedRecord)
@@ -143,7 +174,10 @@ func TestPebbleStateStore_UpdateExistingRecord_Successfully(t *testing.T) {
 
 	actual, err := ss.Get(updatedRecord.Key)
 	assert.Nil(t, err)
-	assert.Equal(t, updatedRecord, actual)
+	assert.Equal(t, updatedRecord.Key, actual.Key)
+	assert.Equal(t, updatedRecord.Data, actual.Data)
+	assert.Equal(t, updatedRecord.Metadata.Stream, actual.Metadata.Stream)
+	assert.Equal(t, updatedRecord.Metadata.Timestamp.Unix(), actual.Metadata.Timestamp.Unix())
 
 	err = ss.Close()
 	assert.Nil(t, err)
@@ -160,6 +194,10 @@ func TestPebbleStateStore_ConcurrentAccess_SucceedsWithoutUndefinedBehaviour(t *
 			"first_name": String{Val: "John"},
 			"last_name":  String{Val: "Doe"},
 			"age":        Integer{Val: 30},
+		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: time.Now(),
 		},
 	}
 

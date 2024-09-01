@@ -31,20 +31,15 @@ func (p PebbleStateStore) Get(key string) (types.Record, error) {
 	if err != nil {
 		return types.Record{}, err
 	}
+	defer closer.Close()
 
-	data, err := messaging.ProtocolBuffersToValueMap(value)
+	// Use ProtocolBuffersToRecord to deserialize the value
+	record, err := messaging.ProtocolBuffersToRecord(value)
 	if err != nil {
 		return types.Record{}, err
 	}
 
-	if err := closer.Close(); err != nil {
-		return types.Record{}, err
-	}
-
-	return types.Record{
-		Key:  key,
-		Data: data,
-	}, nil
+	return record, nil
 }
 
 // Set inserts an object to state store
@@ -52,8 +47,7 @@ func (p PebbleStateStore) Get(key string) (types.Record, error) {
 // an upsert.
 // Data of the record is stored as ProtobufMessage
 func (p PebbleStateStore) Set(key string, value types.Record) error {
-	// TODO: Decide about metadata in record
-	data, err := messaging.ValueMapToProtocolBuffers(value.Data)
+	data, err := messaging.RecordToProtocolBuffers(value)
 	if err != nil {
 		return err
 	}
