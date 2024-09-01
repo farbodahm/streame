@@ -272,3 +272,92 @@ func TestRecordToProtocolBuffers_InvalidData_ReturnError(t *testing.T) {
 	assert.EqualError(t, err, expectedError)
 	assert.Nil(t, result)
 }
+
+func TestProtocolBuffersToRecord_ValidProtobuf_ConvertsToRecord(t *testing.T) {
+	expectedRecord := Record{
+		Key: "key1",
+		Data: ValueMap{
+			"first_name": String{Val: "foobar"},
+			"last_name":  String{Val: "random_lastname"},
+			"age":        Integer{Val: 23},
+		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: time.Now(),
+		},
+	}
+
+	// Create protobuf message representing the expected record
+	protoStruct := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
+		},
+	}
+	value := structpb.NewStructValue(protoStruct)
+	recordData := &messaging.RecordData{
+		Data: value,
+	}
+	recordProto := &messaging.Record{
+		Key:  expectedRecord.Key,
+		Data: recordData,
+		Metadata: &messaging.Metadata{
+			Stream:    expectedRecord.Metadata.Stream,
+			Timestamp: timestamppb.New(expectedRecord.Metadata.Timestamp),
+		},
+	}
+
+	data, err := proto.Marshal(recordProto)
+	assert.Nil(t, err)
+
+	// Assertions
+	result, err := messaging.ProtocolBuffersToRecord(data)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedRecord.Key, result.Key)
+	assert.Equal(t, expectedRecord.Data, result.Data)
+	assert.Equal(t, expectedRecord.Metadata.Stream, result.Metadata.Stream)
+	assert.Equal(t, expectedRecord.Metadata.Timestamp.Unix(), result.Metadata.Timestamp.Unix()) // Use Unix comparison to avoid precision issues
+}
+
+func TestProtocolBuffersToRecord_InvalidProtobuf_ReturnsError(t *testing.T) {
+	// Invalid byte slice (not a valid protobuf message)
+	invalidData := []byte{0xFF, 0x00, 0x01, 0x02}
+
+	// Test the function
+	result, err := messaging.ProtocolBuffersToRecord(invalidData)
+
+	assert.NotNil(t, err)
+	assert.Equal(t, Record{}, result)
+}
+
+func TestProtocolBuffersToRecord_InvalidDataField_ReturnsError(t *testing.T) {
+	// Prepare a protobuf message with an unsupported field type
+	protoStruct := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"invalid_field": {Kind: &structpb.Value_StructValue{}}, // Unsupported type
+		},
+	}
+	value := structpb.NewStructValue(protoStruct)
+	recordData := &messaging.RecordData{
+		Data: value,
+	}
+	recordProto := &messaging.Record{
+		Key:  "key1",
+		Data: recordData,
+		Metadata: &messaging.Metadata{
+			Stream:    "test_stream",
+			Timestamp: timestamppb.New(time.Now()),
+		},
+	}
+
+	data, err := proto.Marshal(recordProto)
+	assert.Nil(t, err)
+
+	// Test the function
+	result, err := messaging.ProtocolBuffersToRecord(data)
+
+	// Verify that an error is returned and the result is empty
+	assert.NotNil(t, err)
+	assert.Equal(t, Record{}, result)
+}

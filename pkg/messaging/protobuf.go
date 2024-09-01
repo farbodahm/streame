@@ -81,6 +81,7 @@ func ProtocolBuffersToValueMap(data []byte) (types.ValueMap, error) {
 	return ProtoStructToValueMap(recordMessage.Data.GetStructValue())
 }
 
+// RecordToProtocolBuffers serializes a single record to Protobuf message
 func RecordToProtocolBuffers(record types.Record) ([]byte, error) {
 	// Data field
 	protoStruct, err := ValueMapToProtoStruct(record.Data)
@@ -105,4 +106,34 @@ func RecordToProtocolBuffers(record types.Record) ([]byte, error) {
 	}
 
 	return proto.Marshal(recordProto)
+}
+
+// ProtocolBuffersToRecord unmarshals protocol buffer data into a Record
+func ProtocolBuffersToRecord(data []byte) (types.Record, error) {
+	var recordProto Record
+	err := proto.Unmarshal(data, &recordProto)
+	if err != nil {
+		return types.Record{}, err
+	}
+
+	// Convert Data field
+	valueMap, err := ProtoStructToValueMap(recordProto.Data.Data.GetStructValue())
+	if err != nil {
+		return types.Record{}, fmt.Errorf("error converting Data field: %w", err)
+	}
+
+	// Convert Metadata field
+	metadata := types.Metadata{
+		Stream:    recordProto.Metadata.Stream,
+		Timestamp: recordProto.Metadata.Timestamp.AsTime(),
+	}
+
+	// Create and return the Record
+	record := types.Record{
+		Key:      recordProto.Key,
+		Data:     valueMap,
+		Metadata: metadata,
+	}
+
+	return record, nil
 }
