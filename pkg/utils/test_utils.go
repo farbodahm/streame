@@ -51,6 +51,7 @@ func HeavyRecordSchema() Schema {
 // with given length.
 // You can use this for benchmark tests.
 func NewHeavyRecord(string_length int) Record {
+	t := time.Now()
 	return Record{
 		Key: GenerateRandomString(string_length),
 		Data: ValueMap{
@@ -74,6 +75,10 @@ func NewHeavyRecord(string_length int) Record {
 			"field_18": String{Val: GenerateRandomString(string_length)},
 			"field_19": String{Val: GenerateRandomString(string_length)},
 			"field_20": String{Val: GenerateRandomString(string_length)},
+		},
+		Metadata: Metadata{
+			Stream:    "benchmark",
+			Timestamp: t,
 		},
 	}
 }
