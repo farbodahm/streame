@@ -6,6 +6,7 @@ import (
 	"github.com/farbodahm/streame/pkg/types"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var ErrConvertingToProtoStruct = "Failed converting to Proto struct, unsupported ColumnType: '%v'"
@@ -78,4 +79,30 @@ func ProtocolBuffersToValueMap(data []byte) (types.ValueMap, error) {
 	}
 
 	return ProtoStructToValueMap(recordMessage.Data.GetStructValue())
+}
+
+func RecordToProtocolBuffers(record types.Record) ([]byte, error) {
+	// Data field
+	protoStruct, err := ValueMapToProtoStruct(record.Data)
+	if err != nil {
+		return nil, err
+	}
+	valueData := structpb.NewStructValue(&protoStruct)
+	recordData := &RecordData{
+		Data: valueData,
+	}
+
+	// Metadata field
+	metadataProto := &Metadata{
+		Stream:    record.Metadata.Stream,
+		Timestamp: timestamppb.New(record.Metadata.Timestamp),
+	}
+
+	recordProto := &Record{
+		Key:      record.Key,
+		Data:     recordData,
+		Metadata: metadataProto,
+	}
+
+	return proto.Marshal(recordProto)
 }

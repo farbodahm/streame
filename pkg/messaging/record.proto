@@ -5,8 +5,22 @@ package messaging;
 option go_package = "./pkg/messaging/";
 
 import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
 
 // RecordData holds data of a record
-message RecordData {
-  google.protobuf.Value data = 1;
+message RecordData { google.protobuf.Value data = 1; }
+
+// Metadata contains metadata for a data record, such as timestamps and stream
+// time.
+message Metadata {
+  google.protobuf.Timestamp timestamp =
+      1;             // Record received date in Unix timestamp
+  string stream = 2; // Name of the stream the record belongs to
+}
+
+// Record represents a single data record in the stream.
+message Record {
+  string key = 1;        // Key for the record
+  RecordData data = 2;   // Data of the record
+  Metadata metadata = 3; // Metadata for the record
 }

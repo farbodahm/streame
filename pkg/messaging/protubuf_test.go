@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"log"
 	"testing"
+	"time"
 
-	"github.com/cockroachdb/pebble"
 	"github.com/farbodahm/streame/pkg/messaging"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Make sure TestType implements ColumnValue
@@ -209,25 +210,65 @@ func TestProtocolBuffersSerialization_ValidRecord_ValeMapSerializesAndDeserializ
 	assert.Equal(t, result, data)
 }
 
-func TestPebble(t *testing.T) {
-	db, err := pebble.Open("./demo", &pebble.Options{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	key := []byte("hello")
-	if err := db.Set(key, []byte("world"), pebble.Sync); err != nil {
-		log.Fatal(err)
-	}
-	value, closer, err := db.Get(key)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("%s %s\n", key, value)
-	if err := closer.Close(); err != nil {
-		log.Fatal(err)
-	}
-	if err := db.Close(); err != nil {
-		log.Fatal(err)
+func TestRecordToProtocolBuffers_ValidRecord_RecordShouldMarshalToProtobuf(t *testing.T) {
+	record := Record{
+		Key: "key1",
+		Data: ValueMap{
+			"first_name": String{Val: "foobar"},
+			"last_name":  String{Val: "random_lastname"},
+			"age":        Integer{Val: 23},
+		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: time.Now(),
+		},
 	}
 
+	// Serialization
+	result, err := messaging.RecordToProtocolBuffers(record)
+	assert.Nil(t, err)
+
+	// Deserialize the result
+	var recordProto messaging.Record
+	err = proto.Unmarshal(result, &recordProto)
+	assert.Nil(t, err)
+
+	// Check key
+	assert.Equal(t, record.Key, recordProto.Key)
+
+	// Check data
+	expectedStruct := structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
+			"last_name":  {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
+			"age":        {Kind: &structpb.Value_NumberValue{NumberValue: 23}},
+		},
+	}
+	assert.Equal(t, expectedStruct.Fields, recordProto.Data.Data.GetStructValue().Fields)
+
+	// Check metadata
+	assert.Equal(t, record.Metadata.Stream, recordProto.Metadata.Stream)
+	assert.Equal(t, timestamppb.New(record.Metadata.Timestamp), recordProto.Metadata.Timestamp)
+}
+
+func TestRecordToProtocolBuffers_InvalidData_ReturnError(t *testing.T) {
+	record := Record{
+		Key: "key1",
+		Data: ValueMap{
+			"first_name": String{Val: "foobar"},
+			"last_name":  String{Val: "random_lastname"},
+			"age":        TestType{Val: 23}, // Invalid type
+		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: time.Now(),
+		},
+	}
+
+	// Call the function
+	result, err := messaging.RecordToProtocolBuffers(record)
+	expectedError := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
+
+	assert.EqualError(t, err, expectedError)
+	assert.Nil(t, result)
 }
