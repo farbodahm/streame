@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/functions/join"
 	"github.com/farbodahm/streame/pkg/types"
 	. "github.com/farbodahm/streame/pkg/types"
@@ -251,4 +252,69 @@ func TestMergeRecords_BothRecordsEmpty_ReturnsEmptyRecord(t *testing.T) {
 	result := join.MergeRecords(left, right)
 
 	assert.Equal(t, expected, result)
+}
+
+func TestValidateJoinCondition_ValidCondition_NoError(t *testing.T) {
+	leftSchema := types.Schema{
+		Columns: types.Fields{
+			"id": types.IntType,
+		},
+	}
+	rightSchema := types.Schema{
+		Columns: types.Fields{
+			"user_id": types.IntType,
+		},
+	}
+	condition := join.JoinCondition{
+		LeftKey:  "id",
+		RightKey: "user_id",
+	}
+
+	err := join.ValidateJoinCondition(leftSchema, rightSchema, condition)
+
+	assert.Nil(t, err)
+}
+
+func TestValidateJoinCondition_MissingLeftKey_ReturnsError(t *testing.T) {
+	leftSchema := types.Schema{
+		Columns: types.Fields{
+			"name": types.StringType,
+		},
+	}
+	rightSchema := types.Schema{
+		Columns: types.Fields{
+			"user_id": types.IntType,
+		},
+	}
+	condition := join.JoinCondition{
+		LeftKey:  "id",
+		RightKey: "user_id",
+	}
+
+	err := join.ValidateJoinCondition(leftSchema, rightSchema, condition)
+
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, fmt.Sprintf(functions.ErrColumnNotFound, "id"))
+}
+
+func TestValidateJoinCondition_MissingRightKey_ReturnsError(t *testing.T) {
+	leftSchema := types.Schema{
+		Columns: types.Fields{
+			"id": types.IntType,
+		},
+	}
+	rightSchema := types.Schema{
+		Columns: types.Fields{
+			"email": types.StringType,
+		},
+	}
+	condition := join.JoinCondition{
+		LeftKey:  "id",
+		RightKey: "user_id",
+	}
+
+	err := join.ValidateJoinCondition(leftSchema, rightSchema, condition)
+
+	assert.NotNil(t, err)
+	assert.EqualError(t, err, fmt.Sprintf(functions.ErrColumnNotFound, "user_id"))
 }

@@ -3,6 +3,7 @@ package join
 import (
 	"fmt"
 
+	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/types"
 )
 
@@ -50,4 +51,18 @@ func MergeRecords(left, right types.Record) types.Record {
 	}
 
 	return new_record
+}
+
+// ValidateJoinCondition checks if join condition is valid.
+// Currently it checks if both schema have required fields.
+func ValidateJoinCondition(left, right types.Schema, on JoinCondition) error {
+	_, exists := left.Columns[on.LeftKey]
+	if !exists {
+		return fmt.Errorf(functions.ErrColumnNotFound, on.LeftKey)
+	}
+	_, exists = right.Columns[on.RightKey]
+	if !exists {
+		return fmt.Errorf(functions.ErrColumnNotFound, on.RightKey)
+	}
+	return nil
 }
