@@ -11,7 +11,7 @@ import (
 var _ StateStore = &InMemorySS{}
 
 // InMemorySS is an in-memory implementation of the StateStore interface.
-// NOTE: This should not be used on Production environments as it doesn't persist the data.
+// NOTE: This should NOT be used on Production environments as it doesn't persist the data.
 type InMemorySS struct {
 	store map[string]types.Record
 	mu    sync.RWMutex
