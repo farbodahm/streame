@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/farbodahm/streame/pkg/functions/join"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSreamDataFrame_AddStage_FirstStage(t *testing.T) {
+func TestStreamDataFrame_AddStage_FirstStage(t *testing.T) {
 	input := make(chan Record)
 	output := make(chan Record)
 	errors := make(chan error)
@@ -16,7 +17,7 @@ func TestSreamDataFrame_AddStage_FirstStage(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema)
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
 	executor := func(ctx context.Context, data Record) ([]Record, error) {
 		return nil, nil
 	}
@@ -31,7 +32,7 @@ func TestSreamDataFrame_AddStage_FirstStage(t *testing.T) {
 	assert.Equal(t, sdf.Stages[0].Error, sdf.ErrorStream)
 }
 
-func TestSreamDataFrame_AddStage_ChainStages(t *testing.T) {
+func TestStreamDataFrame_AddStage_ChainStages(t *testing.T) {
 	input := make(chan Record)
 	output := make(chan Record)
 	errors := make(chan error)
@@ -39,7 +40,7 @@ func TestSreamDataFrame_AddStage_ChainStages(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema)
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
 	executor := func(ctx context.Context, data Record) ([]Record, error) {
 		return nil, nil
 	}
@@ -57,7 +58,7 @@ func TestSreamDataFrame_AddStage_ChainStages(t *testing.T) {
 	assert.Equal(t, sdf.Stages[1].Error, sdf.ErrorStream)
 }
 
-func TestSreamDataFrame_Execute_ErrorIfNoStagesDefined(t *testing.T) {
+func TestStreamDataFrame_Execute_ErrorIfNoStagesDefined(t *testing.T) {
 	input := make(chan Record)
 	output := make(chan Record)
 	errors := make(chan error)
@@ -74,7 +75,7 @@ func TestSreamDataFrame_Execute_ErrorIfNoStagesDefined(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestSreamDataFrame_Execute_CancellingContextStopsExecution(t *testing.T) {
+func TestStreamDataFrame_Execute_CancellingContextStopsExecution(t *testing.T) {
 	input := make(chan Record)
 	output := make(chan Record)
 	errors := make(chan error)
@@ -82,7 +83,7 @@ func TestSreamDataFrame_Execute_CancellingContextStopsExecution(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema)
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -97,4 +98,36 @@ func TestSreamDataFrame_Execute_CancellingContextStopsExecution(t *testing.T) {
 
 	err := <-execution_result_chan
 	assert.Nil(t, err)
+}
+
+func TestStreamDataFrame_Join_ShouldAddPreviousStagesAsPreviousExecutors(t *testing.T) {
+	// User Data
+	user_input := make(chan Record)
+	user_output := make(chan Record)
+	user_errors := make(chan error)
+	user_schema := Schema{
+		Columns: Fields{
+			"email":      StringType,
+			"first_name": StringType,
+			"last_name":  StringType,
+		},
+	}
+	user_sdf := NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+
+	// Order Data
+	order_input := make(chan Record)
+	orders_output := make(chan Record)
+	orders_errors := make(chan error)
+	orders_schema := Schema{
+		Columns: Fields{
+			"user_email": StringType,
+			"amount":     IntType,
+		},
+	}
+	orders_sdf := NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+
+	// Logic to test
+	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*StreamDataFrame)
+
+	assert.Equal(t, 2, len(joined_sdf.previousExecutors))
 }

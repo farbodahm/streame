@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/farbodahm/streame/pkg/functions"
+	"github.com/farbodahm/streame/pkg/functions/join"
 	"github.com/farbodahm/streame/pkg/types"
 )
 
@@ -13,6 +14,7 @@ type DataFrame interface {
 	Select(columns ...string) DataFrame
 	AddStaticColumn(name string, value types.ColumnValue) DataFrame
 	Rename(old_name string, new_name string) DataFrame
+	Join(other *StreamDataFrame, how join.JoinType, on join.JoinCondition, mode join.JoinMode) DataFrame
 	Execute(ctx context.Context) error
 	GetSchema() types.Schema
 }

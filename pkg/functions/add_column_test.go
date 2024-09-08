@@ -95,7 +95,7 @@ func TestAddStaticColumn_AddIntegerField_AddColumnToSchemaAndRecords(t *testing.
 			"last_name":  StringType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	// Logic to test
 	result_df := sdf.AddStaticColumn("age", Integer{Val: 10})
@@ -142,6 +142,9 @@ func TestAddStaticColumn_AddIntegerField_AddColumnToSchemaAndRecords(t *testing.
 				"last_name":  String{Val: "random_lastname"},
 				"age":        Integer{Val: 10},
 			},
+			Metadata: Metadata{
+				Stream: "test-stream",
+			},
 		},
 		{
 			Key: "key2",
@@ -150,6 +153,9 @@ func TestAddStaticColumn_AddIntegerField_AddColumnToSchemaAndRecords(t *testing.
 				"last_name":  String{Val: "random_lastname"},
 				"age":        Integer{Val: 10},
 			},
+			Metadata: Metadata{
+				Stream: "test-stream",
+			},
 		},
 		{
 			Key: "key3",
@@ -157,6 +163,9 @@ func TestAddStaticColumn_AddIntegerField_AddColumnToSchemaAndRecords(t *testing.
 				"first_name": String{Val: "random_name2"},
 				"last_name":  String{Val: "random_lastname2"},
 				"age":        Integer{Val: 10},
+			},
+			Metadata: Metadata{
+				Stream: "test-stream",
 			},
 		},
 	}
@@ -192,7 +201,7 @@ func TestAddStaticColumn_AddAlreadyExistingColumn_PanicsWithAlreadyExistsColumn(
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	assert.Panicsf(t,
 		func() {

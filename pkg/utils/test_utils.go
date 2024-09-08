@@ -51,6 +51,7 @@ func HeavyRecordSchema() Schema {
 // with given length.
 // You can use this for benchmark tests.
 func NewHeavyRecord(string_length int) Record {
+	t := time.Now()
 	return Record{
 		Key: GenerateRandomString(string_length),
 		Data: ValueMap{
@@ -74,6 +75,74 @@ func NewHeavyRecord(string_length int) Record {
 			"field_18": String{Val: GenerateRandomString(string_length)},
 			"field_19": String{Val: GenerateRandomString(string_length)},
 			"field_20": String{Val: GenerateRandomString(string_length)},
+		},
+		Metadata: Metadata{
+			Stream:    "benchmark",
+			Timestamp: t,
+		},
+	}
+}
+
+// HeavyRecordSchemaV2 returns schema for the HeavyRecord with fields 21 to 40
+func HeavyRecordSchemaV2() Schema {
+	return Schema{
+		Columns: Fields{
+			"field_21": StringType,
+			"field_22": StringType,
+			"field_23": StringType,
+			"field_24": StringType,
+			"field_25": StringType,
+			"field_26": StringType,
+			"field_27": StringType,
+			"field_28": StringType,
+			"field_29": StringType,
+			"field_30": StringType,
+			"field_31": StringType,
+			"field_32": StringType,
+			"field_33": StringType,
+			"field_34": StringType,
+			"field_35": StringType,
+			"field_36": StringType,
+			"field_37": StringType,
+			"field_38": StringType,
+			"field_39": StringType,
+			"field_40": StringType,
+		},
+	}
+}
+
+// NewHeavyRecordV2 creates a new heavy Record with random string values
+// for fields 21 to 40 with given length.
+// You can use this for benchmark tests.
+func NewHeavyRecordV2(string_length int) Record {
+	t := time.Now()
+	return Record{
+		Key: GenerateRandomString(string_length),
+		Data: ValueMap{
+			"field_21": String{Val: GenerateRandomString(string_length)},
+			"field_22": String{Val: GenerateRandomString(string_length)},
+			"field_23": String{Val: GenerateRandomString(string_length)},
+			"field_24": String{Val: GenerateRandomString(string_length)},
+			"field_25": String{Val: GenerateRandomString(string_length)},
+			"field_26": String{Val: GenerateRandomString(string_length)},
+			"field_27": String{Val: GenerateRandomString(string_length)},
+			"field_28": String{Val: GenerateRandomString(string_length)},
+			"field_29": String{Val: GenerateRandomString(string_length)},
+			"field_30": String{Val: GenerateRandomString(string_length)},
+			"field_31": String{Val: GenerateRandomString(string_length)},
+			"field_32": String{Val: GenerateRandomString(string_length)},
+			"field_33": String{Val: GenerateRandomString(string_length)},
+			"field_34": String{Val: GenerateRandomString(string_length)},
+			"field_35": String{Val: GenerateRandomString(string_length)},
+			"field_36": String{Val: GenerateRandomString(string_length)},
+			"field_37": String{Val: GenerateRandomString(string_length)},
+			"field_38": String{Val: GenerateRandomString(string_length)},
+			"field_39": String{Val: GenerateRandomString(string_length)},
+			"field_40": String{Val: GenerateRandomString(string_length)},
+		},
+		Metadata: Metadata{
+			Stream:    "benchmarkV2",
+			Timestamp: t,
 		},
 	}
 }

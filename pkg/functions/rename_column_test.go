@@ -116,7 +116,7 @@ func TestRename_ValidNames_ColumnIsRenamedInSchemaAndRecords(t *testing.T) {
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	// Logic to test
 	result_df := sdf.Rename("last_name", "family_name")
@@ -166,6 +166,9 @@ func TestRename_ValidNames_ColumnIsRenamedInSchemaAndRecords(t *testing.T) {
 				"family_name": String{Val: "random_lastname"},
 				"age":         Integer{Val: 10},
 			},
+			Metadata: Metadata{
+				Stream: "test-stream",
+			},
 		},
 		{
 			Key: "key2",
@@ -174,6 +177,9 @@ func TestRename_ValidNames_ColumnIsRenamedInSchemaAndRecords(t *testing.T) {
 				"family_name": String{Val: "random_lastname"},
 				"age":         Integer{Val: 20},
 			},
+			Metadata: Metadata{
+				Stream: "test-stream",
+			},
 		},
 		{
 			Key: "key3",
@@ -181,6 +187,9 @@ func TestRename_ValidNames_ColumnIsRenamedInSchemaAndRecords(t *testing.T) {
 				"first_name":  String{Val: "random_name2"},
 				"family_name": String{Val: "random_lastname2"},
 				"age":         Integer{Val: 30},
+			},
+			Metadata: Metadata{
+				Stream: "test-stream",
 			},
 		},
 	}
@@ -216,7 +225,7 @@ func TestRename_AddAlreadyExistingColumn_PanicsWithAlreadyExistsColumn(t *testin
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	assert.Panicsf(t,
 		func() {
@@ -239,7 +248,7 @@ func TestRename_AddColumnNameNotExists_PanicsWithColumnNotFound(t *testing.T) {
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	assert.Panicsf(t,
 		func() {

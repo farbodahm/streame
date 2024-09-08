@@ -96,7 +96,7 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 			"last_name":  StringType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	// Logic to test
 	result_df := sdf.Filter(functions.Filter{
@@ -111,6 +111,9 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 		Data: ValueMap{
 			"first_name": String{Val: "foobar"},
 			"last_name":  String{Val: "random_lastname"},
+		},
+		Metadata: Metadata{
+			Stream: "test-stream",
 		},
 	}
 	go func() {
@@ -154,7 +157,7 @@ func TestFilter_WithChainedDataFrame_AcceptRelatedRecord(t *testing.T) {
 			"email":      StringType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema)
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
 
 	// Logic to test
 	result_df := sdf.Filter(functions.Filter{
@@ -178,6 +181,9 @@ func TestFilter_WithChainedDataFrame_AcceptRelatedRecord(t *testing.T) {
 			"first_name": String{Val: "foo"},
 			"last_name":  String{Val: "bar"},
 			"email":      String{Val: "random_email"},
+		},
+		Metadata: Metadata{
+			Stream: "test-stream",
 		},
 	}
 	go func() {
