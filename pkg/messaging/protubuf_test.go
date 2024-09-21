@@ -3,6 +3,7 @@ package messaging_test
 import (
 	"fmt"
 	"log"
+	"reflect"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// Make sure TestType implements ColumnValue
+// Ensure TestType implements ColumnValue
 var _ ColumnValue = TestType{}
 
 // TestType implements ColumnValue for test scenarios
@@ -34,6 +35,10 @@ func (t TestType) ToString() string {
 	return "test_string"
 }
 
+func (t TestType) ToArray() []ColumnValue {
+	panic("TestType cannot be converted to an array")
+}
+
 func (t TestType) Type() ColumnType {
 	return 9999
 }
@@ -49,33 +54,32 @@ func TestValueMapToProtoStruct_ValidRecord_RecordShouldConvertToProtobufStruct(t
 	}
 
 	result, err := messaging.ValueMapToProtoStruct(record.Data)
-	expected_struct := structpb.Struct{
+	expectedStruct := structpb.Struct{
 		Fields: map[string]*structpb.Value{
-			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
-			"last_name":  {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
-			"age":        {Kind: &structpb.Value_NumberValue{NumberValue: 23}},
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
 		},
 	}
 
 	assert.Nil(t, err)
-	assert.Equal(t, expected_struct.AsMap(), result.AsMap())
+	assert.Equal(t, expectedStruct.AsMap(), result.AsMap())
 }
 
-func TestValueMapToProtoStruct_RecordWithInvalidType_ReturnErrorConvertingToProtoStruct(t *testing.T) {
+func TestValueMapToProtoStruct_RecordWithInvalidType_PanicsWithError(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
 			"first_name": String{Val: "foobar"},
-			"last_name":  String{Val: "random_lastname"},
 			"age":        TestType{Val: 23},
 		},
 	}
 
-	result, err := messaging.ValueMapToProtoStruct(record.Data)
-	expected_error := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
+	expectedError := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
 
-	assert.EqualError(t, err, expected_error)
-	assert.Equal(t, structpb.Struct{}.Fields, result.Fields)
+	assert.PanicsWithError(t, expectedError, func() {
+		_, _ = messaging.ValueMapToProtoStruct(record.Data)
+	}, "Expected panic with error: %s", expectedError)
 }
 
 func TestValueMapToProtocolBuffers_ValidRecord_RecordMarshalsToProtobuf(t *testing.T) {
@@ -87,11 +91,11 @@ func TestValueMapToProtocolBuffers_ValidRecord_RecordMarshalsToProtobuf(t *testi
 			"age":        Integer{Val: 23},
 		},
 	}
-	expected_struct := structpb.Struct{
+	expectedStruct := structpb.Struct{
 		Fields: map[string]*structpb.Value{
-			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
-			"last_name":  {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
-			"age":        {Kind: &structpb.Value_NumberValue{NumberValue: 23}},
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
 		},
 	}
 
@@ -101,60 +105,57 @@ func TestValueMapToProtocolBuffers_ValidRecord_RecordMarshalsToProtobuf(t *testi
 	var resultDeserialized messaging.RecordData
 	err = proto.Unmarshal(result, &resultDeserialized)
 	assert.Nil(t, err)
-	assert.Equal(t, expected_struct.Fields, resultDeserialized.GetData().GetStructValue().Fields)
+	assert.Equal(t, expectedStruct.Fields, resultDeserialized.GetData().GetStructValue().Fields)
 }
 
-func TestValueMapToProtocolBuffers_RecordWithInvalidType_ReturnErrorConvertingToProtoStruct(t *testing.T) {
+func TestValueMapToProtocolBuffers_RecordWithInvalidType_PanicsWithError(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
 			"first_name": String{Val: "foobar"},
-			"last_name":  String{Val: "random_lastname"},
-			"age":        TestType{Val: 23},
+			"age":        TestType{Val: 23}, // Invalid type
 		},
 	}
 
-	result, err := messaging.ValueMapToProtocolBuffers(record.Data)
-	expected_error := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
+	expectedError := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
 
-	assert.EqualError(t, err, expected_error)
-	assert.Nil(t, result)
+	assert.PanicsWithError(t, expectedError, func() {
+		_, _ = messaging.ValueMapToProtocolBuffers(record.Data)
+	}, "Expected panic with error: %s", expectedError)
 }
 
 func TestProtoStructToValueMap_ValidRecord_RecordShouldConvertToValueMap(t *testing.T) {
 	protoStruct := structpb.Struct{
 		Fields: map[string]*structpb.Value{
-			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
-			"last_name":  {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
-			"age":        {Kind: &structpb.Value_NumberValue{NumberValue: 23}},
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
 		},
 	}
-	expected_struct := ValueMap{
+	expectedStruct := ValueMap{
 		"first_name": String{Val: "foobar"},
 		"last_name":  String{Val: "random_lastname"},
 		"age":        Integer{Val: 23},
 	}
 
-	result, err := messaging.ProtoStructToValueMap(&protoStruct)
+	result := messaging.ProtoStructToValueMap(&protoStruct)
 
-	assert.Nil(t, err)
-	assert.Equal(t, expected_struct, result)
+	assert.Equal(t, expectedStruct, result)
 }
 
-func TestProtoStructToValueMap_InvalidProtoType_ReturnErrorConvertingToValueMap(t *testing.T) {
+func TestProtoStructToValueMap_InvalidProtoType_PanicsWithError(t *testing.T) {
 	protoStruct := structpb.Struct{
 		Fields: map[string]*structpb.Value{
-			"first_name":    {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
-			"last_name":     {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
-			"invalid_field": {Kind: &structpb.Value_StructValue{}},
+			"first_name":    structpb.NewStringValue("foobar"),
+			"invalid_field": {Kind: &structpb.Value_StructValue{}}, // Unsupported type
 		},
 	}
-	expected_error := fmt.Sprintf(messaging.ErrConvertingToValueMap, "&{<nil>}")
 
-	result, err := messaging.ProtoStructToValueMap(&protoStruct)
+	expectedError := fmt.Sprintf(messaging.ErrConvertingToValueMap, "&{<nil>}")
 
-	assert.EqualError(t, err, expected_error)
-	assert.Equal(t, ValueMap{}, result)
+	assert.PanicsWithError(t, expectedError, func() {
+		_ = messaging.ProtoStructToValueMap(&protoStruct)
+	}, "Expected panic with error: %s", expectedError)
 }
 
 func TestProtocolBuffersToValueMap_ValidRecord_ProtobufUnmarshalsToValueMap(t *testing.T) {
@@ -165,7 +166,7 @@ func TestProtocolBuffersToValueMap_ValidRecord_ProtobufUnmarshalsToValueMap(t *t
 			"age":        structpb.NewNumberValue(23),
 		},
 	}
-	expected_struct := ValueMap{
+	expectedStruct := ValueMap{
 		"first_name": String{Val: "foobar"},
 		"last_name":  String{Val: "random_lastname"},
 		"age":        Integer{Val: 23},
@@ -180,21 +181,19 @@ func TestProtocolBuffersToValueMap_ValidRecord_ProtobufUnmarshalsToValueMap(t *t
 		log.Fatalf("Failed to serialize: %v", err)
 	}
 
-	result, err := messaging.ProtocolBuffersToValueMap(data)
-	assert.Nil(t, err)
-	assert.Equal(t, expected_struct, result)
+	result := messaging.ProtocolBuffersToValueMap(data)
+	assert.Equal(t, expectedStruct, result)
 }
 
-func TestProtocolBuffersToValueMap_InValidProtoByte_ReturnErr(t *testing.T) {
-	invalidData := []byte{0xFF, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F}
+func TestProtocolBuffersToValueMap_InvalidProtoByte_Panics(t *testing.T) {
+	invalidData := []byte{0xFF, 0x00, 0x01, 0x02}
 
-	result, err := messaging.ProtocolBuffersToValueMap(invalidData)
-
-	assert.NotNil(t, err)
-	assert.Nil(t, result)
+	assert.Panics(t, func() {
+		_ = messaging.ProtocolBuffersToValueMap(invalidData)
+	}, "Expected panic when unmarshalling invalid protobuf data")
 }
 
-func TestProtocolBuffersSerialization_ValidRecord_ValeMapSerializesAndDeserializesEndToEnd(t *testing.T) {
+func TestProtocolBuffersSerialization_ValidRecord_ValueMapSerializesAndDeserializesEndToEnd(t *testing.T) {
 	data := ValueMap{
 		"first_name": String{Val: "foobar"},
 		"last_name":  String{Val: "random_lastname"},
@@ -204,13 +203,12 @@ func TestProtocolBuffersSerialization_ValidRecord_ValeMapSerializesAndDeserializ
 	protoMessage, err := messaging.ValueMapToProtocolBuffers(data)
 	assert.Nil(t, err)
 
-	result, err := messaging.ProtocolBuffersToValueMap(protoMessage)
-
-	assert.Nil(t, err)
+	result := messaging.ProtocolBuffersToValueMap(protoMessage)
 	assert.Equal(t, result, data)
 }
 
 func TestRecordToProtocolBuffers_ValidRecord_RecordShouldMarshalToProtobuf(t *testing.T) {
+	now := time.Now()
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
@@ -220,7 +218,7 @@ func TestRecordToProtocolBuffers_ValidRecord_RecordShouldMarshalToProtobuf(t *te
 		},
 		Metadata: Metadata{
 			Stream:    "test_stream",
-			Timestamp: time.Now(),
+			Timestamp: now,
 		},
 	}
 
@@ -237,26 +235,25 @@ func TestRecordToProtocolBuffers_ValidRecord_RecordShouldMarshalToProtobuf(t *te
 	assert.Equal(t, record.Key, recordProto.Key)
 
 	// Check data
-	expectedStruct := structpb.Struct{
+	expectedStruct := &structpb.Struct{
 		Fields: map[string]*structpb.Value{
-			"first_name": {Kind: &structpb.Value_StringValue{StringValue: "foobar"}},
-			"last_name":  {Kind: &structpb.Value_StringValue{StringValue: "random_lastname"}},
-			"age":        {Kind: &structpb.Value_NumberValue{NumberValue: 23}},
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
 		},
 	}
 	assert.Equal(t, expectedStruct.Fields, recordProto.Data.Data.GetStructValue().Fields)
 
 	// Check metadata
 	assert.Equal(t, record.Metadata.Stream, recordProto.Metadata.Stream)
-	assert.Equal(t, timestamppb.New(record.Metadata.Timestamp), recordProto.Metadata.Timestamp)
+	assert.True(t, timestamppb.New(record.Metadata.Timestamp).AsTime().Equal(recordProto.Metadata.Timestamp.AsTime()))
 }
 
-func TestRecordToProtocolBuffers_InvalidData_ReturnError(t *testing.T) {
+func TestRecordToProtocolBuffers_InvalidData_PanicsWithError(t *testing.T) {
 	record := Record{
 		Key: "key1",
 		Data: ValueMap{
 			"first_name": String{Val: "foobar"},
-			"last_name":  String{Val: "random_lastname"},
 			"age":        TestType{Val: 23}, // Invalid type
 		},
 		Metadata: Metadata{
@@ -265,15 +262,15 @@ func TestRecordToProtocolBuffers_InvalidData_ReturnError(t *testing.T) {
 		},
 	}
 
-	// Call the function
-	result, err := messaging.RecordToProtocolBuffers(record)
 	expectedError := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
 
-	assert.EqualError(t, err, expectedError)
-	assert.Nil(t, result)
+	assert.PanicsWithError(t, expectedError, func() {
+		_, _ = messaging.RecordToProtocolBuffers(record)
+	}, "Expected panic with error: %s", expectedError)
 }
 
 func TestProtocolBuffersToRecord_ValidProtobuf_ConvertsToRecord(t *testing.T) {
+	now := time.Now()
 	expectedRecord := Record{
 		Key: "key1",
 		Data: ValueMap{
@@ -283,7 +280,7 @@ func TestProtocolBuffersToRecord_ValidProtobuf_ConvertsToRecord(t *testing.T) {
 		},
 		Metadata: Metadata{
 			Stream:    "test_stream",
-			Timestamp: time.Now(),
+			Timestamp: now,
 		},
 	}
 
@@ -317,21 +314,20 @@ func TestProtocolBuffersToRecord_ValidProtobuf_ConvertsToRecord(t *testing.T) {
 	assert.Equal(t, expectedRecord.Key, result.Key)
 	assert.Equal(t, expectedRecord.Data, result.Data)
 	assert.Equal(t, expectedRecord.Metadata.Stream, result.Metadata.Stream)
-	assert.Equal(t, expectedRecord.Metadata.Timestamp.Unix(), result.Metadata.Timestamp.Unix()) // Use Unix comparison to avoid precision issues
+	assert.True(t, expectedRecord.Metadata.Timestamp.Equal(result.Metadata.Timestamp))
 }
 
-func TestProtocolBuffersToRecord_InvalidProtobuf_ReturnsError(t *testing.T) {
+func TestProtocolBuffersToRecord_InvalidProtobuf_Panics(t *testing.T) {
 	// Invalid byte slice (not a valid protobuf message)
 	invalidData := []byte{0xFF, 0x00, 0x01, 0x02}
 
-	// Test the function
 	result, err := messaging.ProtocolBuffersToRecord(invalidData)
 
-	assert.NotNil(t, err)
 	assert.Equal(t, Record{}, result)
+	assert.Error(t, err)
 }
 
-func TestProtocolBuffersToRecord_InvalidDataField_ReturnsError(t *testing.T) {
+func TestProtocolBuffersToRecord_InvalidDataField_PanicsWithError(t *testing.T) {
 	// Prepare a protobuf message with an unsupported field type
 	protoStruct := &structpb.Struct{
 		Fields: map[string]*structpb.Value{
@@ -354,10 +350,146 @@ func TestProtocolBuffersToRecord_InvalidDataField_ReturnsError(t *testing.T) {
 	data, err := proto.Marshal(recordProto)
 	assert.Nil(t, err)
 
-	// Test the function
-	result, err := messaging.ProtocolBuffersToRecord(data)
+	expectedError := fmt.Sprintf(messaging.ErrConvertingToValueMap, "&{}")
 
-	// Verify that an error is returned and the result is empty
-	assert.NotNil(t, err)
-	assert.Equal(t, Record{}, result)
+	assert.PanicsWithError(t, expectedError, func() {
+		_, _ = messaging.ProtocolBuffersToRecord(data)
+	}, "Expected panic with error: %s", expectedError)
+}
+
+func TestValueMapToProtoStruct_WithArray_ConvertsSuccessfully(t *testing.T) {
+	record := Record{
+		Key: "key1",
+		Data: ValueMap{
+			"numbers": Array{Val: []ColumnValue{
+				Integer{Val: 1},
+				Integer{Val: 2},
+				Integer{Val: 3},
+			}},
+			"strings": Array{Val: []ColumnValue{
+				String{Val: "a"},
+				String{Val: "b"},
+				String{Val: "c"},
+			}},
+		},
+	}
+
+	result, err := messaging.ValueMapToProtoStruct(record.Data)
+	assert.Nil(t, err)
+
+	expectedStruct := structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"numbers": structpb.NewListValue(&structpb.ListValue{
+				Values: []*structpb.Value{
+					structpb.NewNumberValue(1),
+					structpb.NewNumberValue(2),
+					structpb.NewNumberValue(3),
+				},
+			}),
+			"strings": structpb.NewListValue(&structpb.ListValue{
+				Values: []*structpb.Value{
+					structpb.NewStringValue("a"),
+					structpb.NewStringValue("b"),
+					structpb.NewStringValue("c"),
+				},
+			}),
+		},
+	}
+
+	assert.Equal(t, expectedStruct.AsMap(), result.AsMap())
+}
+
+func TestProtoStructToValueMap_WithArray_ConvertsSuccessfully(t *testing.T) {
+	protoStruct := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"numbers": structpb.NewListValue(&structpb.ListValue{
+				Values: []*structpb.Value{
+					structpb.NewNumberValue(1),
+					structpb.NewNumberValue(2),
+					structpb.NewNumberValue(3),
+				},
+			}),
+			"strings": structpb.NewListValue(&structpb.ListValue{
+				Values: []*structpb.Value{
+					structpb.NewStringValue("a"),
+					structpb.NewStringValue("b"),
+					structpb.NewStringValue("c"),
+				},
+			}),
+		},
+	}
+
+	expectedValueMap := ValueMap{
+		"numbers": Array{Val: []ColumnValue{
+			Integer{Val: 1},
+			Integer{Val: 2},
+			Integer{Val: 3},
+		}},
+		"strings": Array{Val: []ColumnValue{
+			String{Val: "a"},
+			String{Val: "b"},
+			String{Val: "c"},
+		}},
+	}
+
+	result := messaging.ProtoStructToValueMap(protoStruct)
+
+	assert.Equal(t, expectedValueMap, result)
+}
+
+func TestRecordToProtocolBuffers_WithArray_SerializesAndDeserializesSuccessfully(t *testing.T) {
+	now := time.Now()
+	record := Record{
+		Key: "key_with_array",
+		Data: ValueMap{
+			"numbers": Array{Val: []ColumnValue{
+				Integer{Val: 10},
+				Integer{Val: 20},
+				Integer{Val: 30},
+			}},
+			"nested_array": Array{Val: []ColumnValue{
+				Array{Val: []ColumnValue{
+					String{Val: "nested1"},
+					String{Val: "nested2"},
+				}},
+				String{Val: "outside"},
+			}},
+		},
+		Metadata: Metadata{
+			Stream:    "array_stream",
+			Timestamp: now,
+		},
+	}
+
+	// Serialize the record
+	serializedData, err := messaging.RecordToProtocolBuffers(record)
+	assert.Nil(t, err)
+
+	// Deserialize the record
+	deserializedRecord, err := messaging.ProtocolBuffersToRecord(serializedData)
+	assert.Nil(t, err)
+
+	// Assertions
+	assert.Equal(t, record.Key, deserializedRecord.Key)
+	assert.Equal(t, record.Metadata.Stream, deserializedRecord.Metadata.Stream)
+	assert.True(t, record.Metadata.Timestamp.Equal(deserializedRecord.Metadata.Timestamp))
+
+	// Compare Data
+	assert.True(t, reflect.DeepEqual(record.Data, deserializedRecord.Data))
+}
+
+func TestValueMapToProtoStruct_ArrayWithInvalidType_PanicsWithError(t *testing.T) {
+	record := Record{
+		Data: ValueMap{
+			"invalid_array": Array{Val: []ColumnValue{
+				TestType{Val: 123}, // Invalid type inside array
+			}},
+		},
+	}
+
+	expectedError := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
+
+	assert.PanicsWithError(t, expectedError, func() {
+		_, _ = messaging.ValueMapToProtoStruct(record.Data)
+	}, "Expected panic with error: %s", expectedError)
 }
