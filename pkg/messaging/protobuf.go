@@ -12,8 +12,8 @@ import (
 var ErrConvertingToProtoStruct = "Failed converting to Proto struct, unsupported ColumnType: '%v'"
 var ErrConvertingToValueMap = "Failed converting to ValueMap, unsupported Value kind: '%v'"
 
-// Helper function to convert ColumnValue to *structpb.Value
-func columnValueToProtoValue(v types.ColumnValue) (*structpb.Value, error) {
+// ColumnValueToProtoValue converts ColumnValue to *structpb.Value
+func ColumnValueToProtoValue(v types.ColumnValue) (*structpb.Value, error) {
 	switch v.Type() {
 	case types.IntType:
 		return structpb.NewNumberValue(float64(v.ToInt())), nil
@@ -23,7 +23,7 @@ func columnValueToProtoValue(v types.ColumnValue) (*structpb.Value, error) {
 		arrValues := v.ToArray()
 		pbListValues := make([]*structpb.Value, len(arrValues))
 		for i, elem := range arrValues {
-			elemPbValue, err := columnValueToProtoValue(elem)
+			elemPbValue, err := ColumnValueToProtoValue(elem)
 			if err != nil {
 				return nil, err
 			}
@@ -39,7 +39,7 @@ func columnValueToProtoValue(v types.ColumnValue) (*structpb.Value, error) {
 func ValueMapToProtoStruct(data types.ValueMap) (structpb.Struct, error) {
 	fields := make(map[string]*structpb.Value)
 	for k, v := range data {
-		pbValue, err := columnValueToProtoValue(v)
+		pbValue, err := ColumnValueToProtoValue(v)
 		if err != nil {
 			return structpb.Struct{}, err
 		}
@@ -63,8 +63,8 @@ func ValueMapToProtocolBuffers(data types.ValueMap) ([]byte, error) {
 	return proto.Marshal(recordMessage)
 }
 
-// Helper function to convert *structpb.Value to ColumnValue
-func protoValueToColumnValue(v *structpb.Value) types.ColumnValue {
+// ProtoValueToColumnValue converts *structpb.Value to ColumnValue
+func ProtoValueToColumnValue(v *structpb.Value) types.ColumnValue {
 	switch kind := v.GetKind().(type) {
 	case *structpb.Value_NumberValue:
 		return types.Integer{Val: int(kind.NumberValue)}
@@ -74,7 +74,7 @@ func protoValueToColumnValue(v *structpb.Value) types.ColumnValue {
 		pbListValues := kind.ListValue.GetValues()
 		arrValues := make([]types.ColumnValue, len(pbListValues))
 		for i, pbValue := range pbListValues {
-			arrValues[i] = protoValueToColumnValue(pbValue)
+			arrValues[i] = ProtoValueToColumnValue(pbValue)
 		}
 		return types.Array{Val: arrValues}
 	default:
@@ -86,7 +86,7 @@ func protoValueToColumnValue(v *structpb.Value) types.ColumnValue {
 func ProtoStructToValueMap(protoStruct *structpb.Struct) types.ValueMap {
 	data := types.ValueMap{}
 	for k, v := range protoStruct.Fields {
-		columnValue := protoValueToColumnValue(v)
+		columnValue := ProtoValueToColumnValue(v)
 		data[k] = columnValue
 	}
 	return data
@@ -156,6 +156,3 @@ func ProtocolBuffersToRecord(data []byte) (types.Record, error) {
 
 	return record, nil
 }
-
-// FIXME: Add an issue to change IntegerValue to NumberValue and change the underlying data type to float64
-// FIXME: Add an optimization issue to verify how serialization/deserialization to and from Protobuf is now bad with recursive nature.

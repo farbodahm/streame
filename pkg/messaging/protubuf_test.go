@@ -493,3 +493,112 @@ func TestValueMapToProtoStruct_ArrayWithInvalidType_PanicsWithError(t *testing.T
 		_, _ = messaging.ValueMapToProtoStruct(record.Data)
 	}, "Expected panic with error: %s", expectedError)
 }
+
+func TestColumnValueToProtoValue_WithInteger_ConvertsSuccessfully(t *testing.T) {
+	value := Integer{Val: 123}
+
+	result, err := messaging.ColumnValueToProtoValue(value)
+	assert.Nil(t, err)
+
+	expectedResult := structpb.NewNumberValue(123)
+
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestColumnValueToProtoValue_WithString_ConvertsSuccessfully(t *testing.T) {
+	value := String{Val: "hello"}
+
+	result, err := messaging.ColumnValueToProtoValue(value)
+	assert.Nil(t, err)
+
+	expectedResult := structpb.NewStringValue("hello")
+
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestColumnValueToProtoValue_WithArrayOfIntegers_ConvertsSuccessfully(t *testing.T) {
+	value := Array{Val: []ColumnValue{
+		Integer{Val: 1},
+		Integer{Val: 2},
+		Integer{Val: 3},
+	}}
+
+	result, err := messaging.ColumnValueToProtoValue(value)
+	assert.Nil(t, err)
+
+	expectedResult := structpb.NewListValue(&structpb.ListValue{
+		Values: []*structpb.Value{
+			structpb.NewNumberValue(1),
+			structpb.NewNumberValue(2),
+			structpb.NewNumberValue(3),
+		},
+	})
+
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestColumnValueToProtoValue_WithArrayOfStrings_ConvertsSuccessfully(t *testing.T) {
+	value := Array{Val: []ColumnValue{
+		String{Val: "a"},
+		String{Val: "b"},
+		String{Val: "c"},
+	}}
+
+	result, err := messaging.ColumnValueToProtoValue(value)
+	assert.Nil(t, err)
+
+	expectedResult := structpb.NewListValue(&structpb.ListValue{
+		Values: []*structpb.Value{
+			structpb.NewStringValue("a"),
+			structpb.NewStringValue("b"),
+			structpb.NewStringValue("c"),
+		},
+	})
+
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestColumnValueToProtoValue_WithUnsupportedType_Panics(t *testing.T) {
+	unsupportedValue := TestType{Val: -100}
+
+	errorValue := fmt.Sprintf(messaging.ErrConvertingToProtoStruct, "9999")
+
+	assert.PanicsWithError(t, errorValue, func() {
+		_, _ = messaging.ColumnValueToProtoValue(unsupportedValue)
+	})
+}
+
+func TestColumnValueToProtoValue_WithNestedArray_ConvertsSuccessfully(t *testing.T) {
+	value := Array{Val: []ColumnValue{
+		Array{Val: []ColumnValue{
+			Integer{Val: 1},
+			Integer{Val: 2},
+		}},
+		Array{Val: []ColumnValue{
+			String{Val: "a"},
+			String{Val: "b"},
+		}},
+	}}
+
+	result, err := messaging.ColumnValueToProtoValue(value)
+	assert.Nil(t, err)
+
+	expectedResult := structpb.NewListValue(&structpb.ListValue{
+		Values: []*structpb.Value{
+			structpb.NewListValue(&structpb.ListValue{
+				Values: []*structpb.Value{
+					structpb.NewNumberValue(1),
+					structpb.NewNumberValue(2),
+				},
+			}),
+			structpb.NewListValue(&structpb.ListValue{
+				Values: []*structpb.Value{
+					structpb.NewStringValue("a"),
+					structpb.NewStringValue("b"),
+				},
+			}),
+		},
+	})
+
+	assert.Equal(t, expectedResult, result)
+}
