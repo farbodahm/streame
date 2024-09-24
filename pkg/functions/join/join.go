@@ -76,3 +76,8 @@ func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, rec
 
 	return []types.Record{}
 }
+
+func storeForRetry(ss state_store.StateStore, record types.Record, on JoinCondition) {
+	key := record.Data[on.LeftKey]
+	ss.Set(key.ToString(), record)
+}
