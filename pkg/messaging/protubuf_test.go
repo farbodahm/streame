@@ -602,3 +602,86 @@ func TestColumnValueToProtoValue_WithNestedArray_ConvertsSuccessfully(t *testing
 
 	assert.Equal(t, expectedResult, result)
 }
+
+func TestProtoValueToColumnValue_WithStringValue_ConvertsSuccessfully(t *testing.T) {
+	stringValue := structpb.NewStringValue("test")
+
+	result := messaging.ProtoValueToColumnValue(stringValue)
+
+	expectedResult := String{Val: "test"}
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestProtoValueToColumnValue_WithNumberValue_ConvertsSuccessfully(t *testing.T) {
+	numberValue := structpb.NewNumberValue(42)
+
+	result := messaging.ProtoValueToColumnValue(numberValue)
+
+	expectedResult := Integer{Val: 42}
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestProtoValueToColumnValue_WithArrayOfMixedValues_ConvertsSuccessfully(t *testing.T) {
+	listValue := structpb.NewListValue(&structpb.ListValue{
+		Values: []*structpb.Value{
+			structpb.NewStringValue("abc"),
+			structpb.NewNumberValue(123),
+			structpb.NewStringValue("xyz"),
+		},
+	})
+
+	result := messaging.ProtoValueToColumnValue(listValue)
+
+	expectedResult := Array{Val: []ColumnValue{
+		String{Val: "abc"},
+		Integer{Val: 123},
+		String{Val: "xyz"},
+	}}
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestProtoValueToColumnValue_WithUnsupportedType_Panics(t *testing.T) {
+	unsupportedValue := structpb.NewNullValue()
+
+	errorValue := fmt.Sprintf(messaging.ErrConvertingToValueMap, "&{NULL_VALUE}")
+
+	assert.PanicsWithError(t, errorValue, func() {
+		_ = messaging.ProtoValueToColumnValue(unsupportedValue)
+	})
+}
+
+func TestProtoValueToColumnValue_WithNestedArrayOfValues_ConvertsSuccessfully(t *testing.T) {
+	nestedListValue := structpb.NewListValue(&structpb.ListValue{
+		Values: []*structpb.Value{
+			structpb.NewListValue(&structpb.ListValue{
+				Values: []*structpb.Value{
+					structpb.NewStringValue("nested1"),
+					structpb.NewNumberValue(99),
+				},
+			}),
+			structpb.NewStringValue("outer"),
+		},
+	})
+
+	result := messaging.ProtoValueToColumnValue(nestedListValue)
+
+	expectedResult := Array{Val: []ColumnValue{
+		Array{Val: []ColumnValue{
+			String{Val: "nested1"},
+			Integer{Val: 99},
+		}},
+		String{Val: "outer"},
+	}}
+	assert.Equal(t, expectedResult, result)
+}
+
+func TestProtoValueToColumnValue_WithEmptyList_ConvertsSuccessfully(t *testing.T) {
+	emptyListValue := structpb.NewListValue(&structpb.ListValue{
+		Values: []*structpb.Value{},
+	})
+
+	result := messaging.ProtoValueToColumnValue(emptyListValue)
+
+	expectedResult := Array{Val: []ColumnValue{}}
+	assert.Equal(t, expectedResult, result)
+}
