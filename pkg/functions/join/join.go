@@ -77,7 +77,53 @@ func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, rec
 	return []types.Record{}
 }
 
-func storeForRetry(ss state_store.StateStore, record types.Record, on JoinCondition) {
-	key := record.Data[on.LeftKey]
-	ss.Set(key.ToString(), record)
+// StoreForRetry stores a record in the state store for later retry when a join condition is met.
+// It first retrieves or initializes a collection of delayed events for a given join value.
+// The join value is derived from the record's data using the specified join condition (on.LeftKey).
+//
+//   - It builds a unique key for all delayed events using the record's stream and the join value (e.g., "stream#D#join_value").
+//   - It attempts to retrieve any existing delayed events for this join value from the state store.
+//   - If no previous events exist for the join value,
+//     a new record is created with an empty list of event IDs ("ids") to track delayed events.
+//
+// - The record's key is then appended to the list of delayed event IDs for the corresponding join value.
+// - After updating the list, it stores the modified collection of delayed events back into the state store.
+//
+//   - Finally, the function stores the actual record itself in the state store using a unique key
+//     derived from the record's stream and key (e.g., "stream#record_key"), so it can be retrieved later
+//     when the respective join condition is met.
+func StoreForRetry(ss state_store.StateStore, record types.Record, on JoinCondition) error {
+	join_value := record.Data[on.LeftKey].ToString()
+
+	all_delayed_events_key := record.Metadata.Stream + "#D#" + join_value
+	var all_delayed_events types.Record
+	all_delayed_events, err := ss.Get(all_delayed_events_key)
+
+	// If there are no delayed events for this join value, create a new list
+	if err != nil {
+		all_delayed_events = types.Record{
+			Key: all_delayed_events_key,
+			Data: types.ValueMap{
+				"ids": types.Array{Val: []types.ColumnValue{}},
+			},
+			Metadata: types.Metadata{Stream: record.Metadata.Stream + "#D"},
+		}
+	}
+
+	all_delayed_events.Data = types.ValueMap{
+		"ids": types.Array{Val: append(all_delayed_events.Data["ids"].ToArray(), types.String{Val: record.Key})},
+	}
+
+	if err := ss.Set(all_delayed_events_key, all_delayed_events); err != nil {
+		return err
+	}
+
+	// Store the record itself to get when respective join is ready
+	record_key := record.Metadata.Stream + "#" + record.Key
+
+	if err := ss.Set(record_key, record); err != nil {
+		return err
+	}
+
+	return nil
 }

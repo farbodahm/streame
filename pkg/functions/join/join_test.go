@@ -393,3 +393,87 @@ func TestJoin_TableRecordWithoutMatch_InnerJoinShouldNotProduceResult(t *testing
 func TestJoin_UnorderedDelayedStream_InnerJoinShouldWorkIfWeFirstGetStreamRecordThenTableRecord(t *testing.T) {
 	t.Skip("Currently Streame doesn't support Delayed Primary Stream. It's in the road map soon...")
 }
+
+func TestStoreForRetry_FirstRecord_StoresFirstDelayedEventSuccessfully(t *testing.T) {
+	ss := state_store.NewInMemorySS()
+	event := Record{
+		Key: "order1",
+		Data: ValueMap{
+			"value":       Integer{Val: 999},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "some description"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1",
+		},
+	}
+	condition := join.JoinCondition{
+		LeftKey:  "invoice_id",
+		RightKey: "id",
+	}
+
+	err := join.StoreForRetry(ss, event, condition)
+	assert.NoError(t, err)
+
+	record, err := ss.Get("stream1#order1")
+	assert.NoError(t, err)
+	assert.Equal(t, event, record)
+
+	all_delayed_events, err := ss.Get("stream1#D#invoice100")
+	assert.NoError(t, err)
+	assert.Equal(t, Record{
+		Key: "stream1#D#invoice100",
+		Data: ValueMap{
+			"ids": Array{Val: []ColumnValue{String{Val: "order1"}}},
+		},
+		Metadata: Metadata{Stream: record.Metadata.Stream + "#D"},
+	}, all_delayed_events)
+	ss.Close()
+}
+
+func TestStoreForRetry_SecondRecord_AppendToOtherDelayedEventsSuccessfully(t *testing.T) {
+	ss := state_store.NewInMemorySS()
+
+	ss.Set("stream1#D#invoice100", Record{
+		Key: "stream1#D#invoice100",
+		Data: ValueMap{
+			"ids": Array{Val: []ColumnValue{String{Val: "order1"}}},
+		},
+		Metadata: Metadata{Stream: "stream1#D"},
+	})
+
+	event := Record{
+		Key: "order2",
+		Data: ValueMap{
+			"value":       Integer{Val: 888},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "some description 2"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1",
+		},
+	}
+	condition := join.JoinCondition{
+		LeftKey:  "invoice_id",
+		RightKey: "id",
+	}
+
+	err := join.StoreForRetry(ss, event, condition)
+	assert.NoError(t, err)
+
+	record, err := ss.Get("stream1#order2")
+	assert.NoError(t, err)
+	assert.Equal(t, event, record)
+
+	all_delayed_events, err := ss.Get("stream1#D#invoice100")
+	assert.NoError(t, err)
+	assert.Equal(t, Record{
+		Key: "stream1#D#invoice100",
+		Data: ValueMap{
+			"ids": Array{Val: []ColumnValue{
+				String{Val: "order1"},
+				String{Val: "order2"}}},
+		},
+		Metadata: Metadata{Stream: record.Metadata.Stream + "#D"},
+	}, all_delayed_events)
+}
