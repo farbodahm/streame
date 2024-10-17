@@ -8,6 +8,7 @@ import (
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/functions/join"
 	"github.com/farbodahm/streame/pkg/state_store"
+	"github.com/farbodahm/streame/pkg/types"
 	. "github.com/farbodahm/streame/pkg/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -392,4 +393,212 @@ func TestJoin_TableRecordWithoutMatch_InnerJoinShouldNotProduceResult(t *testing
 
 func TestJoin_UnorderedDelayedStream_InnerJoinShouldWorkIfWeFirstGetStreamRecordThenTableRecord(t *testing.T) {
 	t.Skip("Currently Streame doesn't support Delayed Primary Stream. It's in the road map soon...")
+}
+
+func TestStoreForRetry_FirstRecord_StoresFirstDelayedEventSuccessfully(t *testing.T) {
+	ss := state_store.NewInMemorySS()
+	event := Record{
+		Key: "order1",
+		Data: ValueMap{
+			"value":       Integer{Val: 999},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "some description"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1",
+		},
+	}
+	condition := join.JoinCondition{
+		LeftKey:  "invoice_id",
+		RightKey: "id",
+	}
+
+	err := join.StoreForRetry(ss, event, condition)
+	assert.NoError(t, err)
+
+	record, err := ss.Get("stream1#order1")
+	assert.NoError(t, err)
+	assert.Equal(t, event, record)
+
+	all_delayed_events, err := ss.Get("stream1#D#invoice100")
+	assert.NoError(t, err)
+	assert.Equal(t, Record{
+		Key: "stream1#D#invoice100",
+		Data: ValueMap{
+			"ids": Array{Val: []ColumnValue{String{Val: "order1"}}},
+		},
+		Metadata: Metadata{Stream: record.Metadata.Stream + "#D"},
+	}, all_delayed_events)
+	ss.Close()
+}
+
+func TestStoreForRetry_SecondRecord_AppendToOtherDelayedEventsSuccessfully(t *testing.T) {
+	ss := state_store.NewInMemorySS()
+
+	ss.Set("stream1#D#invoice100", Record{
+		Key: "stream1#D#invoice100",
+		Data: ValueMap{
+			"ids": Array{Val: []ColumnValue{String{Val: "order1"}}},
+		},
+		Metadata: Metadata{Stream: "stream1#D"},
+	})
+
+	event := Record{
+		Key: "order2",
+		Data: ValueMap{
+			"value":       Integer{Val: 888},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "some description 2"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1",
+		},
+	}
+	condition := join.JoinCondition{
+		LeftKey:  "invoice_id",
+		RightKey: "id",
+	}
+
+	err := join.StoreForRetry(ss, event, condition)
+	assert.NoError(t, err)
+
+	record, err := ss.Get("stream1#order2")
+	assert.NoError(t, err)
+	assert.Equal(t, event, record)
+
+	all_delayed_events, err := ss.Get("stream1#D#invoice100")
+	assert.NoError(t, err)
+	assert.Equal(t, Record{
+		Key: "stream1#D#invoice100",
+		Data: ValueMap{
+			"ids": Array{Val: []ColumnValue{
+				String{Val: "order1"},
+				String{Val: "order2"}}},
+		},
+		Metadata: Metadata{Stream: record.Metadata.Stream + "#D"},
+	}, all_delayed_events)
+}
+
+func TestRetryDelayedEvents_MultipleDelayedEvents_SameInvoice_JoinsAllOrdersSuccessfully(t *testing.T) {
+	ss := state_store.NewInMemorySS()
+
+	invoiceRecord := Record{
+		Key: "invoice100",
+		Data: ValueMap{
+			"invoice_id":          String{Val: "invoice100"},
+			"total_value":         Integer{Val: 2000},
+			"invoice_description": String{Val: "Invoice for multiple orders"},
+		},
+		Metadata: Metadata{
+			Stream: "invoice_stream",
+		},
+	}
+
+	// Prepare multiple delayed events (orders) that depend on the same invoice
+	order1 := Record{
+		Key: "order1",
+		Data: ValueMap{
+			"order_id":    String{Val: "order1"},
+			"value":       Integer{Val: 999},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "First order"},
+		},
+		Metadata: Metadata{
+			Stream: "order_stream",
+		},
+	}
+	order2 := Record{
+		Key: "order2",
+		Data: ValueMap{
+			"order_id":    String{Val: "order2"},
+			"value":       Integer{Val: 888},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "Second order"},
+		},
+		Metadata: Metadata{
+			Stream: "order_stream",
+		},
+	}
+	order3 := Record{
+		Key: "order3",
+		Data: ValueMap{
+			"order_id":    String{Val: "order3"},
+			"value":       Integer{Val: 777},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "Third order"},
+		},
+		Metadata: Metadata{
+			Stream: "order_stream",
+		},
+	}
+
+	// Set the delayed orders in the state store
+	ss.Set("order_stream#order1", order1)
+	ss.Set("order_stream#order2", order2)
+	ss.Set("order_stream#order3", order3)
+
+	// Call the function under test with all delayed orders' keys
+	delayedEventsKeys := []types.ColumnValue{
+		String{Val: "order_stream#order1"},
+		String{Val: "order_stream#order2"},
+		String{Val: "order_stream#order3"},
+	}
+	result := join.RetryDelayedEvents(ss, invoiceRecord, delayedEventsKeys)
+
+	// Assert that all orders were retrieved and merged with the invoice successfully
+	assert.Len(t, result, 3)
+
+	// The merged record should contain the combined information from the invoice and each order
+	expectedRecord1 := join.MergeRecords(invoiceRecord, order1)
+	expectedRecord2 := join.MergeRecords(invoiceRecord, order2)
+	expectedRecord3 := join.MergeRecords(invoiceRecord, order3)
+
+	assert.Equal(t, expectedRecord1, result[0])
+	assert.Equal(t, expectedRecord2, result[1])
+	assert.Equal(t, expectedRecord3, result[2])
+}
+
+func TestRetryDelayedEvents_RecordRetrievalError_Panics(t *testing.T) {
+	ss := state_store.NewInMemorySS()
+
+	record := Record{
+		Key: "order1",
+		Data: ValueMap{
+			"value":       Integer{Val: 999},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "initial description"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1",
+		},
+	}
+
+	// Call the function under test with a non-existent delayed event key
+	delayedEventsKeys := []types.ColumnValue{String{Val: "non_existent_key"}}
+
+	assert.Panics(t, func() {
+		join.RetryDelayedEvents(ss, record, delayedEventsKeys)
+	})
+}
+
+func TestRetryDelayedEvents_NoDelayedEvents_ReturnsEmpty(t *testing.T) {
+	ss := state_store.NewInMemorySS()
+
+	record := Record{
+		Key: "order1",
+		Data: ValueMap{
+			"value":       Integer{Val: 999},
+			"invoice_id":  String{Val: "invoice100"},
+			"description": String{Val: "initial description"},
+		},
+		Metadata: Metadata{
+			Stream: "stream1",
+		},
+	}
+
+	// Call the function under test with no delayed events
+	delayedEventsKeys := []types.ColumnValue{}
+	result := join.RetryDelayedEvents(ss, record, delayedEventsKeys)
+
+	assert.Len(t, result, 0)
 }
