@@ -77,6 +77,30 @@ func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, rec
 	return []types.Record{}
 }
 
+// RetryDelayedEvents retrieves delayed events from the state store, merges them with the given record,
+// and returns a list of the merged records.
+//
+// The function iterates over the delayed event keys, retrieves each corresponding event from the state store,
+// merges each with the provided record, and returns all merged results.
+func RetryDelayedEvents(ss state_store.StateStore, record types.Record, delayed_events_keys []types.ColumnValue) []types.Record {
+	var delayed_events []types.Record
+	for _, event_id := range delayed_events_keys {
+		record, err := ss.Get(event_id.ToString())
+		if err != nil {
+			panic(err)
+		}
+		delayed_events = append(delayed_events, record)
+	}
+
+	var joined_records []types.Record
+	for _, delayed_event := range delayed_events {
+		joined_record := MergeRecords(record, delayed_event)
+		joined_records = append(joined_records, joined_record)
+	}
+
+	return joined_records
+}
+
 // StoreForRetry stores a record in the state store for later retry when a join condition is met.
 // It first retrieves or initializes a collection of delayed events for a given join value.
 // The join value is derived from the record's data using the specified join condition (on.LeftKey).
