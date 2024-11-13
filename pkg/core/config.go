@@ -3,6 +3,7 @@ package core
 import (
 	"log/slog"
 
+	"github.com/farbodahm/streame/pkg/functions/join"
 	"github.com/farbodahm/streame/pkg/state_store"
 )
 
@@ -29,4 +30,11 @@ func WithStateStore(ss state_store.StateStore) Option {
 	return func(c *Config) {
 		c.StateStore = ss
 	}
+}
+
+// RuntimeConfig is used internally by the SDF to store configurations
+// that are generated on run time.
+type RuntimeConfig struct {
+	StreamCorrelationMap map[string]string          // map each stream name to its correlated stream in join
+	StreamType           map[string]join.RecordType // map each stream name to its type
 }

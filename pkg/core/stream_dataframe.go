@@ -28,13 +28,11 @@ type StreamDataFrame struct {
 	Configs      *Config
 
 	stateStore state_store.StateStore
+	rc         RuntimeConfig
 	// previousExecutors holds all of the SDFs which current SDF is relying on.
 	// Currently only `Join` operation requires this structure so that it can first run
 	// all of the previous SDFs before running itself.
 	previousExecutors []*StreamDataFrame
-
-	// TODO: Refactor for a better way for storing runtime configs
-	runtimeConfig map[string]any
 }
 
 // NewStreamDataFrame creates a new StreamDataFrame with the given options
@@ -62,6 +60,11 @@ func NewStreamDataFrame(
 		utils.Logger.Warn("Using in-memory state store. This is not suitable for production use.")
 	}
 
+	rc := RuntimeConfig{
+		StreamCorrelationMap: map[string]string{},
+		StreamType:           map[string]join.RecordType{},
+	}
+
 	sdf := StreamDataFrame{
 		SourceStream: sourceStream,
 		OutputStream: outputStream,
@@ -71,7 +74,7 @@ func NewStreamDataFrame(
 		Schema:       schema,
 		Configs:      &config,
 
-		runtimeConfig:     make(map[string]any),
+		rc:                rc,
 		stateStore:        config.StateStore,
 		previousExecutors: []*StreamDataFrame{},
 	}
@@ -136,14 +139,16 @@ func (sdf *StreamDataFrame) Join(other *StreamDataFrame, how join.JoinType, on j
 		new_schema,
 		sdf.Name+"-"+other.Name+join.JoinedStreamSuffix,
 	)
-	// TODO: Decide on configs
+	// TODO: Decide on how to pass configs
 	new_sdf.Configs = sdf.Configs
+	new_sdf.rc = sdf.rc
 
-	new_sdf.runtimeConfig[sdf.Name] = join.Stream
-	new_sdf.runtimeConfig[other.Name] = join.Table
+	new_sdf.rc.StreamType[sdf.Name] = join.Stream
+	new_sdf.rc.StreamType[other.Name] = join.Table
+	new_sdf.rc.StreamCorrelationMap[sdf.Name] = other.Name
 
 	executor := func(ctx context.Context, record types.Record) ([]types.Record, error) {
-		record_type := new_sdf.runtimeConfig[record.Metadata.Stream].(join.RecordType)
+		record_type := new_sdf.rc.StreamType[record.Metadata.Stream]
 		return join.InnerJoinStreamTable(new_sdf.stateStore, record_type, record, on), nil
 	}
 

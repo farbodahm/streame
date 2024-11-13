@@ -131,3 +131,36 @@ func TestStreamDataFrame_Join_ShouldAddPreviousStagesAsPreviousExecutors(t *test
 
 	assert.Equal(t, 2, len(joined_sdf.previousExecutors))
 }
+
+func TestStreamDataFrame_Join_AddingCorrectRuntimeConfig(t *testing.T) {
+	// User Data
+	user_input := make(chan Record)
+	user_output := make(chan Record)
+	user_errors := make(chan error)
+	user_schema := Schema{
+		Columns: Fields{
+			"email":      StringType,
+			"first_name": StringType,
+			"last_name":  StringType,
+		},
+	}
+	user_sdf := NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+
+	// Order Data
+	order_input := make(chan Record)
+	orders_output := make(chan Record)
+	orders_errors := make(chan error)
+	orders_schema := Schema{
+		Columns: Fields{
+			"user_email": StringType,
+			"amount":     IntType,
+		},
+	}
+	orders_sdf := NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+
+	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*StreamDataFrame)
+
+	assert.Equal(t, join.Stream, joined_sdf.rc.StreamType[orders_sdf.Name])
+	assert.Equal(t, join.Table, joined_sdf.rc.StreamType[user_sdf.Name])
+	assert.Equal(t, user_sdf.Name, joined_sdf.rc.StreamCorrelationMap[orders_sdf.Name])
+}
