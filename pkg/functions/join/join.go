@@ -54,17 +54,30 @@ const JoinedStreamSuffix = "-J"
 //   - If the record does not exist in the state store, it logs a warning and returns an empty slice.
 //
 // - If the record type is invalid, it panics with an error message.
-func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, record types.Record, on JoinCondition) []types.Record {
+func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, record types.Record, on JoinCondition, correlated_stream string) []types.Record {
 
 	switch record_type {
 	case Table:
 		key := record.Data[on.RightKey]
 		ss.Set(key.ToString(), record)
+
+		// Check if there are any delayed events for this key
+		all_delayed_events_key := correlated_stream + "#D#" + key.ToString()
+		delayed_events_keys, err := ss.Get(all_delayed_events_key)
+		if err == nil {
+			return RetryDelayedEvents(ss, record, correlated_stream, delayed_events_keys.Data["ids"].ToArray())
+		}
+
 	case Stream:
 		key := record.Data[on.LeftKey]
 
-		relative_record, exists := ss.Get(key.ToString())
-		if exists != nil {
+		relative_record, err := ss.Get(key.ToString())
+		// If related join record doesn't exists, store for retry.
+		if err != nil {
+			err := StoreForRetry(ss, record, on)
+			if err != nil {
+				panic(err)
+			}
 			return []types.Record{}
 		}
 
@@ -82,19 +95,20 @@ func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, rec
 //
 // The function iterates over the delayed event keys, retrieves each corresponding event from the state store,
 // merges each with the provided record, and returns all merged results.
-func RetryDelayedEvents(ss state_store.StateStore, record types.Record, delayed_events_keys []types.ColumnValue) []types.Record {
+func RetryDelayedEvents(ss state_store.StateStore, record types.Record, correlated_stream string, delayed_events_keys []types.ColumnValue) []types.Record {
 	var delayed_events []types.Record
 	for _, event_id := range delayed_events_keys {
-		record, err := ss.Get(event_id.ToString())
+		id := correlated_stream + "#" + event_id.ToString()
+		correlated_record, err := ss.Get(id)
 		if err != nil {
 			panic(err)
 		}
-		delayed_events = append(delayed_events, record)
+		delayed_events = append(delayed_events, correlated_record)
 	}
 
 	var joined_records []types.Record
 	for _, delayed_event := range delayed_events {
-		joined_record := MergeRecords(record, delayed_event)
+		joined_record := MergeRecords(delayed_event, record)
 		joined_records = append(joined_records, joined_record)
 	}
 

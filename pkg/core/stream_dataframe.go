@@ -149,7 +149,7 @@ func (sdf *StreamDataFrame) Join(other *StreamDataFrame, how join.JoinType, on j
 
 	executor := func(ctx context.Context, record types.Record) ([]types.Record, error) {
 		record_type := new_sdf.rc.StreamType[record.Metadata.Stream]
-		return join.InnerJoinStreamTable(new_sdf.stateStore, record_type, record, on), nil
+		return join.InnerJoinStreamTable(new_sdf.stateStore, record_type, record, on, sdf.Name), nil
 	}
 
 	new_sdf.previousExecutors = append(new_sdf.previousExecutors, sdf, other)
