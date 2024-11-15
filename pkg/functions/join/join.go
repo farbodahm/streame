@@ -1,6 +1,8 @@
 package join
 
 import (
+	"fmt"
+
 	"github.com/farbodahm/streame/pkg/state_store"
 	"github.com/farbodahm/streame/pkg/types"
 )
@@ -39,6 +41,14 @@ type JoinCondition struct {
 // to distinguish it from the source streams
 const JoinedStreamSuffix = "-J"
 
+// UnorderedEventKeysFormat represents SS key format for getting id of all of the unordered
+// early arrival keys. STREAM_NAME#D#LATE_ARRIVAL_EVENT_ID
+const UnorderedEventKeysFormat = "%s#D#%s"
+
+// UnorderedKayDataFormat represents SS key for getting value of a specific unordered key.
+// STREAM_NAME#EARLY_ARRIVAL_EVENT_ID
+const UnorderedKayDataFormat = "%s#%s"
+
 // InnerJoinStreamTable performs an inner join operation between a streaming record and records stored in a state store.
 // Depending on the record type (Stream or Table), the function either updates the state store or fetches and joins records.
 //
@@ -62,7 +72,7 @@ func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, rec
 		ss.Set(key.ToString(), record)
 
 		// Check if there are any delayed events for this key
-		all_delayed_events_key := correlated_stream + "#D#" + key.ToString()
+		all_delayed_events_key := fmt.Sprintf(UnorderedEventKeysFormat, correlated_stream, key.ToString())
 		delayed_events_keys, err := ss.Get(all_delayed_events_key)
 		if err == nil {
 			return RetryDelayedEvents(ss, record, correlated_stream, delayed_events_keys.Data["ids"].ToArray())
@@ -98,7 +108,7 @@ func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, rec
 func RetryDelayedEvents(ss state_store.StateStore, record types.Record, correlated_stream string, delayed_events_keys []types.ColumnValue) []types.Record {
 	var delayed_events []types.Record
 	for _, event_id := range delayed_events_keys {
-		id := correlated_stream + "#" + event_id.ToString()
+		id := fmt.Sprintf(UnorderedKayDataFormat, correlated_stream, event_id.ToString())
 		correlated_record, err := ss.Get(id)
 		if err != nil {
 			panic(err)
@@ -133,7 +143,7 @@ func RetryDelayedEvents(ss state_store.StateStore, record types.Record, correlat
 func StoreForRetry(ss state_store.StateStore, record types.Record, on JoinCondition) error {
 	join_value := record.Data[on.LeftKey].ToString()
 
-	all_delayed_events_key := record.Metadata.Stream + "#D#" + join_value
+	all_delayed_events_key := fmt.Sprintf(UnorderedEventKeysFormat, record.Metadata.Stream, join_value)
 	var all_delayed_events types.Record
 	all_delayed_events, err := ss.Get(all_delayed_events_key)
 
@@ -157,7 +167,7 @@ func StoreForRetry(ss state_store.StateStore, record types.Record, on JoinCondit
 	}
 
 	// Store the record itself to get when respective join is ready
-	record_key := record.Metadata.Stream + "#" + record.Key
+	record_key := fmt.Sprintf(UnorderedKayDataFormat, record.Metadata.Stream, record.Key)
 
 	if err := ss.Set(record_key, record); err != nil {
 		return err
