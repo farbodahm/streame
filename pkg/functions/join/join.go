@@ -45,9 +45,9 @@ const JoinedStreamSuffix = "-J"
 // early arrival keys. STREAM_NAME#D#LATE_ARRIVAL_EVENT_ID
 const UnorderedEventKeysFormat = "%s#D#%s"
 
-// UnorderedKayDataFormat represents SS key for getting value of a specific unordered key.
+// UnorderedKeyDataFormat represents SS key for getting value of a specific unordered key.
 // STREAM_NAME#EARLY_ARRIVAL_EVENT_ID
-const UnorderedKayDataFormat = "%s#%s"
+const UnorderedKeyDataFormat = "%s#%s"
 
 // InnerJoinStreamTable performs an inner join operation between a streaming record and records stored in a state store.
 // Depending on the record type (Stream or Table), the function either updates the state store or fetches and joins records.
@@ -108,7 +108,7 @@ func InnerJoinStreamTable(ss state_store.StateStore, record_type RecordType, rec
 func RetryDelayedEvents(ss state_store.StateStore, record types.Record, correlated_stream string, delayed_events_keys []types.ColumnValue) []types.Record {
 	var delayed_events []types.Record
 	for _, event_id := range delayed_events_keys {
-		id := fmt.Sprintf(UnorderedKayDataFormat, correlated_stream, event_id.ToString())
+		id := fmt.Sprintf(UnorderedKeyDataFormat, correlated_stream, event_id.ToString())
 		correlated_record, err := ss.Get(id)
 		if err != nil {
 			panic(err)
@@ -167,7 +167,7 @@ func StoreForRetry(ss state_store.StateStore, record types.Record, on JoinCondit
 	}
 
 	// Store the record itself to get when respective join is ready
-	record_key := fmt.Sprintf(UnorderedKayDataFormat, record.Metadata.Stream, record.Key)
+	record_key := fmt.Sprintf(UnorderedKeyDataFormat, record.Metadata.Stream, record.Key)
 
 	if err := ss.Set(record_key, record); err != nil {
 		return err
