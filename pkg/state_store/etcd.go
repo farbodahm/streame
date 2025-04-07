@@ -9,6 +9,9 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
+var ErrEtcdKeyNotFound = fmt.Errorf("key not found in etcd")
+var ErrEtcdKeyEmpty = fmt.Errorf("key is empty")
+
 // Make sure EtcdStateStore implements StateStore
 var _ StateStore = EtcdStateStore{}
 
@@ -28,7 +31,7 @@ func (ess EtcdStateStore) Get(key string) (types.Record, error) {
 		return types.Record{}, err
 	}
 	if len(valiueResponse.Kvs) == 0 {
-		return types.Record{}, nil
+		return types.Record{}, ErrEtcdKeyNotFound
 	}
 	if len(valiueResponse.Kvs) > 1 {
 		return types.Record{}, fmt.Errorf("multiple values found for key %s", key)
@@ -49,6 +52,10 @@ func (ess EtcdStateStore) Get(key string) (types.Record, error) {
 // an upsert.
 // Data of the record is stored as ProtobufMessage
 func (ess EtcdStateStore) Set(key string, value types.Record) error {
+	if key == "" {
+		return ErrEtcdKeyEmpty
+	}
+
 	data, err := messaging.RecordToProtocolBuffers(value)
 	if err != nil {
 		return err
