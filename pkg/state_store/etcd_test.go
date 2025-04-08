@@ -1,10 +1,8 @@
 //go:build integration
-// +build integration
 
 package state_store_test
 
 import (
-	"log"
 	"testing"
 	"time"
 
@@ -75,7 +73,6 @@ func TestEtcdStateStore_SetEmptyKey_ReturnsError(t *testing.T) {
 
 func TestEtcdStateStore_SetWithExistingKey_OverwritesPreviousRecord(t *testing.T) {
 	ss := setupTestEtcdStore(t)
-	log.Println("Starting test for overwriting record")
 	key := "user123"
 
 	// Initial record
