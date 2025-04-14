@@ -96,7 +96,7 @@ func TestFilter_WithDataFrame_AcceptRelatedRecord(t *testing.T) {
 			"last_name":  StringType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	// Logic to test
 	result_df := sdf.Filter(functions.Filter{
@@ -157,7 +157,7 @@ func TestFilter_WithChainedDataFrame_AcceptRelatedRecord(t *testing.T) {
 			"email":      StringType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	// Logic to test
 	result_df := sdf.Filter(functions.Filter{

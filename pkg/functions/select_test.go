@@ -91,7 +91,7 @@ func TestSelect_WithDataFrame_SelectOnlyExpectedFields(t *testing.T) {
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	// Logic to test
 	result_df := sdf.Select("first_name", "age")
@@ -196,7 +196,7 @@ func TestSelect_SelectInvalidColumnName_PanicsWithColumnNotFound(t *testing.T) {
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	assert.Panicsf(t,
 		func() {
@@ -221,7 +221,7 @@ func TestSelect_FirstFilterThenSelect_ShouldSuccessfullyFilterRecordsThenSelect(
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	result_df := sdf.Filter(functions.Filter{
 		ColumnName: "first_name",

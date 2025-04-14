@@ -3,8 +3,12 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"log/slog"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/functions/join"
@@ -12,7 +16,22 @@ import (
 	"github.com/farbodahm/streame/pkg/types"
 	"github.com/farbodahm/streame/pkg/utils"
 	"github.com/google/uuid"
+
+	etcdv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/client/v3/concurrency"
 )
+
+// GetNodeId generates a unique node ID for the current process.
+// TODO: Make sure this is unique across all nodes in the cluster
+func GetNodeId() string {
+	hostName, err := os.Hostname()
+	if err != nil {
+		panic(fmt.Sprintf("Failed to get hostname: %v", err))
+	}
+	pid := os.Getpid()
+
+	return fmt.Sprintf("%s-%d", hostName, pid)
+}
 
 // Make sure StreamDataFrame implements DataFrame
 var _ DataFrame = &StreamDataFrame{}
@@ -26,6 +45,7 @@ type StreamDataFrame struct {
 	Stages       []Stage
 	Schema       types.Schema
 	Configs      *Config
+	NodeId       string
 
 	stateStore state_store.StateStore
 	rc         RuntimeConfig
@@ -33,6 +53,7 @@ type StreamDataFrame struct {
 	// Currently only `Join` operation requires this structure so that it can first run
 	// all of the previous SDFs before running itself.
 	previousExecutors []*StreamDataFrame
+	etcd              *etcdv3.Client
 }
 
 // NewStreamDataFrame creates a new StreamDataFrame with the given options
@@ -42,12 +63,15 @@ func NewStreamDataFrame(
 	errorStream chan error,
 	schema types.Schema,
 	streamName string,
+	etcd *etcdv3.Client,
 	options ...Option,
 ) StreamDataFrame {
 	// Create config with default values
 	config := Config{
-		LogLevel:   slog.LevelInfo,
-		StateStore: state_store.NewInMemorySS(),
+		LogLevel:                       slog.LevelInfo,
+		StateStore:                     state_store.NewInMemorySS(),
+		LeaderHeartbeatIntervalSeconds: 5,
+		LeaderFetchTimeoutSeconds:      2,
 	}
 	// Functional Option pattern
 	for _, option := range options {
@@ -73,10 +97,12 @@ func NewStreamDataFrame(
 		Stages:       []Stage{},
 		Schema:       schema,
 		Configs:      &config,
+		NodeId:       GetNodeId(),
 
 		rc:                rc,
 		stateStore:        config.StateStore,
 		previousExecutors: []*StreamDataFrame{},
+		etcd:              etcd,
 	}
 
 	// Only source streams need to have schema validation. When a SDF
@@ -138,6 +164,7 @@ func (sdf *StreamDataFrame) Join(other *StreamDataFrame, how join.JoinType, on j
 		merged_errors,
 		new_schema,
 		sdf.Name+"-"+other.Name+join.JoinedStreamSuffix,
+		sdf.etcd,
 	)
 	// TODO: Decide on how to pass configs
 	new_sdf.Configs = sdf.Configs
@@ -270,13 +297,11 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 	sdf.Stages = append(sdf.Stages, stage)
 }
 
-// Execute starts the data processing.
-// It simply runs all of the stages.
-// It's a blocking call and returns when the context is cancelled or panics when an error occurs.
-func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
-	utils.Logger.Info("Executing processor", "name", sdf.Name, "len(stages)", len(sdf.Stages))
-	if len(sdf.Stages) == 0 {
-		return errors.New("no stages are created")
+// runStandalone runs the Streame in standalone mode.
+// It runs all the stages in parallel and waits for them to finish.
+func (sdf *StreamDataFrame) runStandalone(ctx context.Context) error {
+	for _, stage := range sdf.Stages {
+		go stage.Run(ctx)
 	}
 
 	// Execute previous SDFs which current SDF depends on first (if there are any)
@@ -298,6 +323,72 @@ func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 			return nil // Exit the loop if the context is cancelled
 		}
 	}
+}
+
+// runDistributed runs the Streame in distributed mode.
+func (sdf *StreamDataFrame) runDistributed(ctx context.Context) error {
+	session, err := concurrency.NewSession(sdf.etcd, concurrency.WithTTL(sdf.Configs.LeaderHeartbeatIntervalSeconds))
+	if err != nil {
+		utils.Logger.Error("Failed to create session", "error", err)
+		return err
+	}
+	defer session.Close()
+
+	// Compete for leadership
+	election := concurrency.NewElection(session, "/streame/coordinator/")
+	go startLeadershipCampaign(ctx, election, sdf.NodeId)
+
+	for {
+		resp, err := election.Leader(ctx)
+		if err != nil {
+			utils.Logger.Error("Could not get leader", "node", sdf.NodeId, "error", err)
+			time.Sleep(time.Duration(sdf.Configs.LeaderFetchTimeoutSeconds) * time.Second)
+			continue
+		}
+
+		// TODO: Should be another goroutine
+		// Also it should be switchable. So if needed, a node can become a leader
+		if string(resp.Kvs[0].Value) == sdf.NodeId {
+			utils.Logger.Info("Node is Leader", "node", sdf.NodeId)
+			// TODO: Implement leader logic
+			// Leader should read from input stream and publish for other nodes
+		} else {
+			utils.Logger.Info("Node is worked", "node", sdf.NodeId, "leader", string(resp.Kvs[0].Value))
+			// TODO: Implement worker logic
+			// Worker should run the stages and publish the results
+		}
+
+		time.Sleep(3 * time.Second)
+	}
+
+}
+
+// startLeadershipCampaign starts a leadership campaign for the current node.
+func startLeadershipCampaign(ctx context.Context, election *concurrency.Election, nodeId string) {
+	utils.Logger.Info("Campaigning for leader", "node", nodeId)
+	if err := election.Campaign(ctx, nodeId); err != nil {
+		log.Fatalf("[%s] Campaign failed: %v", nodeId, err)
+		utils.Logger.Error("Campaign failed", "error", err)
+		panic(err)
+	}
+	utils.Logger.Info("Campaign succeeded, Current node is leader", "node", nodeId)
+}
+
+// Execute starts the data processing.
+// It's a blocking call and returns when the context is cancelled or panics when an error occurs.
+func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
+	utils.Logger.Info("Executing processor", "name", sdf.Name, "len(stages)", len(sdf.Stages))
+	if len(sdf.Stages) == 0 {
+		return errors.New("no stages are created")
+	}
+
+	if sdf.etcd == nil {
+		utils.Logger.Info("Running in standalone mode")
+		return sdf.runStandalone(ctx)
+	}
+
+	utils.Logger.Info("Running in distributed mode", "nodeId", sdf.NodeId)
+	return sdf.runDistributed(ctx)
 }
 
 // GetSchema returns the schema of the DataFrame
