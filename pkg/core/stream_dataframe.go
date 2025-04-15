@@ -300,10 +300,6 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 // runStandalone runs the Streame in standalone mode.
 // It runs all the stages in parallel and waits for them to finish.
 func (sdf *StreamDataFrame) runStandalone(ctx context.Context) error {
-	for _, stage := range sdf.Stages {
-		go stage.Run(ctx)
-	}
-
 	// Execute previous SDFs which current SDF depends on first (if there are any)
 	for _, previous_sdf := range sdf.previousExecutors {
 		utils.Logger.Info("Executing previous SDF", "name", previous_sdf.Name)
