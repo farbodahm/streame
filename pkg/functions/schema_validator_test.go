@@ -133,7 +133,7 @@ func TestSreamDataFrame_SchemaValidation_AcceptRecordFollowSchema(t *testing.T) 
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	// Generate sample data
 	record_1 := Record{
@@ -184,7 +184,7 @@ func TestSreamDataFrame_SchemaValidation_PanicIfRecordDoesntFollowSchema(t *test
 			"age":        IntType,
 		},
 	}
-	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := core.NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	// Generate sample data
 	faulty_record := Record{

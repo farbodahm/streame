@@ -18,13 +18,13 @@ func inner_join_stream_table(number_of_records int) {
 	stream1_input := make(chan Record)
 	stream1_output := make(chan Record)
 	stream1_errors := make(chan error)
-	stream1_sdf := core.NewStreamDataFrame(stream1_input, stream1_output, stream1_errors, utils.HeavyRecordSchema(), "benchmark1", core.WithLogLevel(slog.LevelError))
+	stream1_sdf := core.NewStreamDataFrame(stream1_input, stream1_output, stream1_errors, utils.HeavyRecordSchema(), "benchmark1", nil, core.WithLogLevel(slog.LevelError))
 
 	// Stream2
 	stream2_input := make(chan Record)
 	stream2_output := make(chan Record)
 	stream2_errors := make(chan error)
-	stream2_sdf := core.NewStreamDataFrame(stream2_input, stream2_output, stream2_errors, utils.HeavyRecordSchemaV2(), "benchmark2 ", core.WithLogLevel(slog.LevelError))
+	stream2_sdf := core.NewStreamDataFrame(stream2_input, stream2_output, stream2_errors, utils.HeavyRecordSchemaV2(), "benchmark2 ", nil, core.WithLogLevel(slog.LevelError))
 
 	// Logic to test
 	joined_sdf := stream2_sdf.Join(&stream1_sdf, join.Inner, join.JoinCondition{LeftKey: "field_21", RightKey: "field_1"}, join.StreamTable).(*core.StreamDataFrame)

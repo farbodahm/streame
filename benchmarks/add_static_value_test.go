@@ -18,7 +18,7 @@ func heavy_static_column_stages(number_of_stages int, number_of_records int) {
 	output := make(chan Record)
 	errors := make(chan error)
 
-	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema(), "test-stream",
+	sdf := core.NewStreamDataFrame(input, output, errors, utils.HeavyRecordSchema(), "test-stream", nil,
 		core.WithLogLevel(slog.LevelError))
 
 	// Create stages

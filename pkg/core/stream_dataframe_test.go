@@ -17,7 +17,7 @@ func TestStreamDataFrame_AddStage_FirstStage(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 	executor := func(ctx context.Context, data Record) ([]Record, error) {
 		return nil, nil
 	}
@@ -40,7 +40,7 @@ func TestStreamDataFrame_AddStage_ChainStages(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 	executor := func(ctx context.Context, data Record) ([]Record, error) {
 		return nil, nil
 	}
@@ -83,7 +83,7 @@ func TestStreamDataFrame_Execute_CancellingContextStopsExecution(t *testing.T) {
 	schema := Schema{
 		Columns: Fields{},
 	}
-	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream")
+	sdf := NewStreamDataFrame(input, output, errors, schema, "test-stream", nil)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -112,7 +112,7 @@ func TestStreamDataFrame_Join_ShouldAddPreviousStagesAsPreviousExecutors(t *test
 			"last_name":  StringType,
 		},
 	}
-	user_sdf := NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data
 	order_input := make(chan Record)
@@ -124,7 +124,7 @@ func TestStreamDataFrame_Join_ShouldAddPreviousStagesAsPreviousExecutors(t *test
 			"amount":     IntType,
 		},
 	}
-	orders_sdf := NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	// Logic to test
 	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*StreamDataFrame)
@@ -144,7 +144,7 @@ func TestStreamDataFrame_Join_AddingCorrectRuntimeConfig(t *testing.T) {
 			"last_name":  StringType,
 		},
 	}
-	user_sdf := NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data
 	order_input := make(chan Record)
@@ -156,7 +156,7 @@ func TestStreamDataFrame_Join_AddingCorrectRuntimeConfig(t *testing.T) {
 			"amount":     IntType,
 		},
 	}
-	orders_sdf := NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*StreamDataFrame)
 

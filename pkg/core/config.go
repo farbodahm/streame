@@ -12,8 +12,10 @@ type Option func(*Config)
 
 // Config is the configuration options for StreamDataFrame
 type Config struct {
-	LogLevel   slog.Level
-	StateStore state_store.StateStore
+	LogLevel                       slog.Level
+	StateStore                     state_store.StateStore
+	LeaderHeartbeatIntervalSeconds int
+	LeaderFetchTimeoutSeconds      int
 }
 
 // WithLogLevel sets the log level for StreamDataFrame
@@ -29,6 +31,13 @@ func WithLogLevel(level slog.Level) Option {
 func WithStateStore(ss state_store.StateStore) Option {
 	return func(c *Config) {
 		c.StateStore = ss
+	}
+}
+
+// WithLeaderHeartbeatInterval sets the leader heartbeat interval
+func WithLeaderHeartbeatInterval(interval int) Option {
+	return func(c *Config) {
+		c.LeaderHeartbeatIntervalSeconds = interval
 	}
 }
 
