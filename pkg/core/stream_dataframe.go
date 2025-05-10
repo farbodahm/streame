@@ -23,14 +23,9 @@ import (
 
 // GetNodeId generates a unique node ID for the current process.
 // TODO: Make sure this is unique across all nodes in the cluster
-func GetNodeId() string {
-	hostName, err := os.Hostname()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get hostname: %v", err))
-	}
+func GetNodeId(nodeIP string) string {
 	pid := os.Getpid()
-
-	return fmt.Sprintf("%s-%d", hostName, pid)
+	return fmt.Sprintf("%s-%d", nodeIP, pid)
 }
 
 // Make sure StreamDataFrame implements DataFrame
@@ -80,6 +75,9 @@ func NewStreamDataFrame(
 
 	utils.InitLogger(config.LogLevel)
 
+	if etcd != nil && config.NodeIP == "" {
+		panic("Node IP is not set. This is required for distributed mode.")
+	}
 	if _, ok := config.StateStore.(*state_store.InMemorySS); ok {
 		utils.Logger.Warn("Using in-memory state store. This is not suitable for production use.")
 	}
@@ -97,7 +95,7 @@ func NewStreamDataFrame(
 		Stages:       []Stage{},
 		Schema:       schema,
 		Configs:      &config,
-		NodeId:       GetNodeId(),
+		NodeId:       GetNodeId(config.NodeIP),
 
 		rc:                rc,
 		stateStore:        config.StateStore,
@@ -332,7 +330,7 @@ func (sdf *StreamDataFrame) runDistributed(ctx context.Context) error {
 
 	// Compete for leadership
 	election := concurrency.NewElection(session, "/streame/coordinator/")
-	go startLeadershipCampaign(ctx, election, sdf.NodeId)
+	go sdf.startLeadershipCampaign(ctx, election)
 
 	for {
 		resp, err := election.Leader(ctx)
@@ -360,14 +358,13 @@ func (sdf *StreamDataFrame) runDistributed(ctx context.Context) error {
 }
 
 // startLeadershipCampaign starts a leadership campaign for the current node.
-func startLeadershipCampaign(ctx context.Context, election *concurrency.Election, nodeId string) {
-	utils.Logger.Info("Campaigning for leader", "node", nodeId)
-	if err := election.Campaign(ctx, nodeId); err != nil {
-		log.Fatalf("[%s] Campaign failed: %v", nodeId, err)
+func (sdf *StreamDataFrame) startLeadershipCampaign(ctx context.Context, election *concurrency.Election) {
+	utils.Logger.Info("Campaigning for leader", "node", sdf.NodeId)
+	if err := election.Campaign(ctx, sdf.NodeId); err != nil {
+		log.Fatalf("[%s] Campaign failed: %v", sdf.NodeId, err)
 		utils.Logger.Error("Campaign failed", "error", err)
 		panic(err)
 	}
-	utils.Logger.Info("Campaign succeeded, Current node is leader", "node", nodeId)
 }
 
 // Execute starts the data processing.

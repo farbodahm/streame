@@ -16,6 +16,7 @@ type Config struct {
 	StateStore                     state_store.StateStore
 	LeaderHeartbeatIntervalSeconds int
 	LeaderFetchTimeoutSeconds      int
+	NodeIP                         string
 }
 
 // WithLogLevel sets the log level for StreamDataFrame
@@ -38,6 +39,20 @@ func WithStateStore(ss state_store.StateStore) Option {
 func WithLeaderHeartbeatInterval(interval int) Option {
 	return func(c *Config) {
 		c.LeaderHeartbeatIntervalSeconds = interval
+	}
+}
+
+// WithLeaderFetchTimeout sets the leader fetch timeout
+func WithLeaderFetchTimeout(timeout int) Option {
+	return func(c *Config) {
+		c.LeaderFetchTimeoutSeconds = timeout
+	}
+}
+
+// WithNodeIP sets the node IP
+func WithNodeIP(ip string) Option {
+	return func(c *Config) {
+		c.NodeIP = ip
 	}
 }
 
