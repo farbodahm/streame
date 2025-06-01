@@ -141,7 +141,7 @@ func TestLeaderElector_Start_OneLeaderOneWorkerOnStoppedLeading(t *testing.T) {
 	cancel1()
 
 	// Give some time for leader to stop
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	select {
 	case <-leaderStoppedCh:

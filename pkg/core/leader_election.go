@@ -60,11 +60,22 @@ func NewLeaderElector(nodeID string,
 
 // Start starts the leader election process.
 func (le *LeaderElector) Start(ctx context.Context) error {
-	session, err := concurrency.NewSession(le.etcd, concurrency.WithTTL(10))
+	session, err := concurrency.NewSession(le.etcd, concurrency.WithTTL(2))
 	if err != nil {
 		slog.Error("Failed to create etcd session", "error", err)
 		return err
 	}
+	defer func() {
+		slog.Info("Closing etcd session", "nodeID", le.NodeID)
+		err := session.Close()
+		if err != nil {
+			slog.Error("Failed to close etcd session", "error", err)
+		}
+		if le.IsLeader() {
+			slog.Info("Stopped leading due to execution finished", "nodeID", le.NodeID)
+			le.OnStoppedLeading()
+		}
+	}()
 
 	election := concurrency.NewElection(session, LeaderElectionKey)
 
@@ -81,6 +92,7 @@ func (le *LeaderElector) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			slog.Info("Leader election stopped", "nodeID", le.NodeID)
 			return ctx.Err()
 
 		default:
@@ -100,8 +112,8 @@ func (le *LeaderElector) Start(ctx context.Context) error {
 				}
 
 				// If the old leader was this node and it's no longer the leader
-				if le.currentLeaderID == le.NodeID && leaderID != le.NodeID {
-					slog.Info("Stopped leading", "nodeID", le.NodeID)
+				if le.IsLeader() && leaderID != le.NodeID {
+					slog.Info("Stopped leading due to leader changed", "nodeID", le.NodeID)
 					le.OnStoppedLeading()
 				}
 
@@ -111,6 +123,11 @@ func (le *LeaderElector) Start(ctx context.Context) error {
 			time.Sleep(2 * time.Second) // Poll interval
 		}
 	}
+}
+
+// isLeader checks if this node is the current leader.
+func (le *LeaderElector) IsLeader() bool {
+	return le.currentLeaderID == le.NodeID
 }
 
 // tryBeLeader attempts to become the leader by creating an election.
@@ -123,5 +140,6 @@ func (le *LeaderElector) tryBeLeader(ctx context.Context, election *concurrency.
 		return err
 	}
 	slog.Info("Became leader", "nodeID", le.NodeID)
+	le.currentLeaderID = le.NodeID
 	return nil
 }
