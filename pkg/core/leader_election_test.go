@@ -247,5 +247,3 @@ func TestLeaderElector_Start_OneLeaderTwoWorkersOnNewLeaderAfterLeaderStops(t *t
 		t.Fatalf("unexpected new leader: %s", newLeader)
 	}
 }
-
-// TODO: Currently context cancellation is not resulting in a new leader being elected.
