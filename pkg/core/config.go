@@ -17,6 +17,7 @@ type Config struct {
 	LeaderHeartbeatIntervalSeconds int
 	LeaderFetchTimeoutSeconds      int
 	NodeIP                         string
+	LeaderGRPCPort                 int
 }
 
 // WithLogLevel sets the log level for StreamDataFrame
@@ -53,6 +54,13 @@ func WithLeaderFetchTimeout(timeout int) Option {
 func WithNodeIP(ip string) Option {
 	return func(c *Config) {
 		c.NodeIP = ip
+	}
+}
+
+// WithLeaderGRPCPort sets the gRPC port for leader
+func WithLeaderGRPCPort(port int) Option {
+	return func(c *Config) {
+		c.LeaderGRPCPort = port
 	}
 }
 

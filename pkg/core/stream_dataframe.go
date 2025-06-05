@@ -4,21 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
+	"net"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/functions/join"
+	"github.com/farbodahm/streame/pkg/messaging"
 	"github.com/farbodahm/streame/pkg/state_store"
 	"github.com/farbodahm/streame/pkg/types"
 	"github.com/farbodahm/streame/pkg/utils"
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
 
 	etcdv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/client/v3/concurrency"
 )
 
 // GetNodeId generates a unique node ID for the current process.
@@ -67,6 +67,7 @@ func NewStreamDataFrame(
 		StateStore:                     state_store.NewInMemorySS(),
 		LeaderHeartbeatIntervalSeconds: 5,
 		LeaderFetchTimeoutSeconds:      2,
+		LeaderGRPCPort:                 50085,
 	}
 	// Functional Option pattern
 	for _, option := range options {
@@ -319,52 +320,52 @@ func (sdf *StreamDataFrame) runStandalone(ctx context.Context) error {
 	}
 }
 
-// runDistributed runs the Streame in distributed mode.
-func (sdf *StreamDataFrame) runDistributed(ctx context.Context) error {
-	session, err := concurrency.NewSession(sdf.etcd, concurrency.WithTTL(sdf.Configs.LeaderHeartbeatIntervalSeconds))
+func (sdf *StreamDataFrame) onStartedLeading(ctx context.Context) {
+	utils.Logger.Info("Starting GRPC server for leader", "port", sdf.Configs.LeaderGRPCPort)
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", sdf.Configs.LeaderGRPCPort))
 	if err != nil {
-		utils.Logger.Error("Failed to create session", "error", err)
-		return err
+		utils.Logger.Error("Failed to listen GRPC for leader", "error", err)
+		sdf.ErrorStream <- fmt.Errorf("failed to listen GRPC for leader: %w", err)
+		return
 	}
-	defer session.Close()
+	s := grpc.NewServer()
 
-	// Compete for leadership
-	election := concurrency.NewElection(session, "/streame/coordinator/")
-	go sdf.startLeadershipCampaign(ctx, election)
-
-	for {
-		resp, err := election.Leader(ctx)
-		if err != nil {
-			utils.Logger.Error("Could not get leader", "node", sdf.NodeId, "error", err)
-			time.Sleep(time.Duration(sdf.Configs.LeaderFetchTimeoutSeconds) * time.Second)
-			continue
-		}
-
-		// TODO: Should be another goroutine
-		// Also it should be switchable. So if needed, a node can become a leader
-		if string(resp.Kvs[0].Value) == sdf.NodeId {
-			utils.Logger.Info("Node is Leader", "node", sdf.NodeId)
-			// TODO: Implement leader logic
-			// Leader should read from input stream and publish for other nodes
-		} else {
-			utils.Logger.Info("Node is worked", "node", sdf.NodeId, "leader", string(resp.Kvs[0].Value))
-			// TODO: Implement worker logic
-			// Worker should run the stages and publish the results
-		}
-
-		time.Sleep(3 * time.Second)
+	server := messaging.RecordStreamService{
+		InputChan: sdf.SourceStream,
 	}
+	messaging.RegisterRecordStreamServer(s, &server)
 
+	if err := s.Serve(lis); err != nil {
+		utils.Logger.Error("Failed to serve GRPC for leader", "error", err)
+		sdf.ErrorStream <- fmt.Errorf("failed to serve GRPC for leader: %w", err)
+		return
+	}
 }
 
-// startLeadershipCampaign starts a leadership campaign for the current node.
-func (sdf *StreamDataFrame) startLeadershipCampaign(ctx context.Context, election *concurrency.Election) {
-	utils.Logger.Info("Campaigning for leader", "node", sdf.NodeId)
-	if err := election.Campaign(ctx, sdf.NodeId); err != nil {
-		log.Fatalf("[%s] Campaign failed: %v", sdf.NodeId, err)
-		utils.Logger.Error("Campaign failed", "error", err)
-		panic(err)
+func (sdf *StreamDataFrame) onStoppedLeading() {
+	utils.Logger.Info("Stopped leading", "node", sdf.NodeId)
+	// TODO: Implement logic to handle when this node stops being the leader
+}
+
+func (sdf *StreamDataFrame) onNewLeader(newLeaderId string) {
+	utils.Logger.Info("New leader detected", "node", sdf.NodeId, "newLeader", newLeaderId)
+}
+
+// runDistributed runs the Streame in distributed mode.
+func (sdf *StreamDataFrame) runDistributed(ctx context.Context) error {
+	leaderElector, err := NewLeaderElector(
+		sdf.NodeId,
+		sdf.etcd,
+		sdf.onStartedLeading,
+		sdf.onStoppedLeading,
+		sdf.onNewLeader,
+		sdf.ErrorStream,
+	)
+	if err != nil {
+		return err
 	}
+
+	return leaderElector.Start(ctx)
 }
 
 // Execute starts the data processing.
