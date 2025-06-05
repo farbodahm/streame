@@ -26,7 +26,7 @@ type LeaderElector struct {
 	OnStoppedLeading func()
 	// OnNewLeader is a callback function that is called when a new leader is elected.
 	// It receives the ID of the new leader.
-	OnNewLeader func(newLeaderID string)
+	OnNewLeader func(newLeaderID string, ctx context.Context)
 
 	// ErrCh is used by callback functions to report errors to stop the leader election process.
 	ErrCh chan error
@@ -38,7 +38,7 @@ func NewLeaderElector(nodeID string,
 	etcdClient *etcdv3.Client,
 	onStartedLeading func(context.Context),
 	onStoppedLeading func(),
-	onNewLeader func(newLeaderID string),
+	onNewLeader func(newLeaderID string, ctx context.Context),
 	errCh chan error) (*LeaderElector, error) {
 	if nodeID == "" {
 		return nil, fmt.Errorf("nodeID cannot be empty")
@@ -117,7 +117,7 @@ func (le *LeaderElector) Start(ctx context.Context) error {
 			if leaderID != le.currentLeaderID {
 				if leaderID != le.NodeID {
 					slog.Info("Leader changed", "oldLeaderID", le.currentLeaderID, "newLeaderID", leaderID)
-					le.OnNewLeader(leaderID)
+					le.OnNewLeader(leaderID, ctx)
 				}
 
 				// If the old leader was this node and it's no longer the leader
