@@ -28,6 +28,9 @@ type LeaderElector struct {
 	// It receives the ID of the new leader.
 	OnNewLeader func(newLeaderID string)
 
+	// ErrCh is used by callback functions to report errors to stop the leader election process.
+	ErrCh chan error
+
 	currentLeaderID string
 }
 
@@ -35,7 +38,8 @@ func NewLeaderElector(nodeID string,
 	etcdClient *etcdv3.Client,
 	onStartedLeading func(context.Context),
 	onStoppedLeading func(),
-	onNewLeader func(newLeaderID string)) (*LeaderElector, error) {
+	onNewLeader func(newLeaderID string),
+	errCh chan error) (*LeaderElector, error) {
 	if nodeID == "" {
 		return nil, fmt.Errorf("nodeID cannot be empty")
 	}
@@ -55,6 +59,7 @@ func NewLeaderElector(nodeID string,
 		OnStoppedLeading: onStoppedLeading,
 		OnNewLeader:      onNewLeader,
 		etcd:             etcdClient,
+		ErrCh:            errCh,
 	}, nil
 }
 
@@ -94,6 +99,10 @@ func (le *LeaderElector) Start(ctx context.Context) error {
 		case <-ctx.Done():
 			slog.Info("Leader election stopped", "nodeID", le.NodeID)
 			return ctx.Err()
+
+		case err := <-le.ErrCh:
+			slog.Error("Error in leader election callbacks", "error", err)
+			return err
 
 		default:
 			leaderResp, err := election.Leader(ctx)

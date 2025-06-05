@@ -4,6 +4,7 @@ package core_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ func TestLeaderElector_Start_SingleNodeElection(t *testing.T) {
 		func(ctx context.Context) { startedCh <- struct{}{} },
 		func() {},
 		func(string) {},
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -61,6 +63,7 @@ func TestLeaderElector_Start_TwoNodeElectionOnNewLeader(t *testing.T) {
 		func(ctx context.Context) { startedCh <- struct{}{} },
 		func() {},
 		func(string) {},
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -68,6 +71,7 @@ func TestLeaderElector_Start_TwoNodeElectionOnNewLeader(t *testing.T) {
 		func(ctx context.Context) {},
 		func() {},
 		func(newLeaderID string) { newLeaderCh <- newLeaderID },
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -108,6 +112,7 @@ func TestLeaderElector_Start_OneLeaderOneWorkerOnStoppedLeading(t *testing.T) {
 		func(ctx context.Context) { leaderStartedCh <- struct{}{} },
 		func() { leaderStoppedCh <- struct{}{} },
 		func(string) {},
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -115,6 +120,7 @@ func TestLeaderElector_Start_OneLeaderOneWorkerOnStoppedLeading(t *testing.T) {
 		func(ctx context.Context) {},
 		func() {},
 		func(newLeaderID string) { workerNewLeaderCh <- newLeaderID },
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -171,6 +177,7 @@ func TestLeaderElector_Start_OneLeaderTwoWorkersOnNewLeaderAfterLeaderStops(t *t
 		func(ctx context.Context) { leaderStartedCh <- struct{}{} },
 		func() {},
 		func(string) {},
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -178,6 +185,7 @@ func TestLeaderElector_Start_OneLeaderTwoWorkersOnNewLeaderAfterLeaderStops(t *t
 		func(ctx context.Context) { worker2StartedCh <- "node2" },
 		func() {},
 		func(newLeaderID string) { worker2NewLeaderCh <- newLeaderID },
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -185,6 +193,7 @@ func TestLeaderElector_Start_OneLeaderTwoWorkersOnNewLeaderAfterLeaderStops(t *t
 		func(ctx context.Context) { worker3StartedCh <- "node3" },
 		func() {},
 		func(newLeaderID string) { worker3NewLeaderCh <- newLeaderID },
+		nil,
 	)
 	assert.NoError(t, err)
 
@@ -246,4 +255,28 @@ func TestLeaderElector_Start_OneLeaderTwoWorkersOnNewLeaderAfterLeaderStops(t *t
 	} else {
 		t.Fatalf("unexpected new leader: %s", newLeader)
 	}
+}
+
+func TestLeaderElector_Start_CallbacksUseErrorChannelOnFailures(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"http://localhost:2379"},
+		DialTimeout: 5 * time.Second,
+	})
+	assert.NoError(t, err)
+	defer cli.Close()
+
+	errCh := make(chan error, 1)
+	elector, err := NewLeaderElector("node1", cli,
+		func(ctx context.Context) { errCh <- fmt.Errorf("error in callback") },
+		func() {},
+		func(string) {},
+		errCh,
+	)
+	assert.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = elector.Start(ctx)
+	assert.Error(t, err, "expected error from Start due to callback failure")
 }
