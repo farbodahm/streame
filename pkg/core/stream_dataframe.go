@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/functions/join"
@@ -347,8 +348,35 @@ func (sdf *StreamDataFrame) onStoppedLeading() {
 	// TODO: Implement logic to handle when this node stops being the leader
 }
 
-func (sdf *StreamDataFrame) onNewLeader(newLeaderId string) {
+func (sdf *StreamDataFrame) onNewLeader(newLeaderId string, ctx context.Context) {
 	utils.Logger.Info("New leader detected", "node", sdf.NodeId, "newLeader", newLeaderId)
+	leaderIP := strings.Split(newLeaderId, "-")[0]
+	address := fmt.Sprintf("%s:%d", leaderIP, sdf.Configs.LeaderGRPCPort)
+	recChan, errChan := messaging.StreamRecordsFromLeader(ctx, address, sdf.NodeId)
+
+	for {
+		select {
+		case <-ctx.Done():
+			utils.Logger.Info("Context cancelled, stopping record streaming")
+			return
+		case err := <-errChan:
+			if err != nil {
+				utils.Logger.Error("Error receiving records from leader", "error", err)
+				sdf.ErrorStream <- fmt.Errorf("error receiving records from leader: %w", err)
+				return
+			}
+
+		case record, ok := <-recChan:
+			if !ok {
+				utils.Logger.Info("Receiving records from leader channel closed, stopping callback")
+				return
+			}
+			time.Sleep(time.Millisecond * 100) // Simulate processing delay
+			utils.Logger.Info("Received record from leader", "record", record)
+		}
+
+	}
+
 }
 
 // runDistributed runs the Streame in distributed mode.

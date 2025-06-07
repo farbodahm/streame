@@ -46,6 +46,47 @@ func TestLeaderElector_Start_SingleNodeElection(t *testing.T) {
 	}
 }
 
+func TestLeaderElector_Start_CallbacksUseErrorChannelOnNewLeaderFailures(t *testing.T) {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{"http://localhost:2379"},
+		DialTimeout: 5 * time.Second,
+	})
+	assert.NoError(t, err)
+	defer cli.Close()
+
+	leaderStartedCh := make(chan struct{}, 1)
+	leaderElector, err := NewLeaderElector("node1", cli,
+		func(ctx context.Context) { leaderStartedCh <- struct{}{} },
+		func() {},
+		func(string, context.Context) {},
+		nil,
+	)
+	assert.NoError(t, err)
+	ctxLeader, cancelLeader := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelLeader()
+	go leaderElector.Start(ctxLeader)
+	select {
+	case <-leaderStartedCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("node1 did not start leading")
+	}
+
+	errCh := make(chan error, 1)
+	elector, err := NewLeaderElector("node2", cli,
+		func(ctx context.Context) {},
+		func() {},
+		func(_ string, _ context.Context) { errCh <- fmt.Errorf("error in onNewLeader") },
+		errCh,
+	)
+	assert.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = elector.Start(ctx)
+	assert.Error(t, err, "expected error from Start due to onNewLeader callback failure")
+}
+
 // TestLeaderElector_Start_TwoNodeElectionOnNewLeader verifies that when a second node
 // participates in the election, it detects the existing leader and executes OnNewLeader callback.
 func TestLeaderElector_Start_TwoNodeElectionOnNewLeader(t *testing.T) {

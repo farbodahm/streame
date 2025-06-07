@@ -117,21 +117,23 @@ func (le *LeaderElector) Start(ctx context.Context) error {
 			if leaderID != le.currentLeaderID {
 				if leaderID != le.NodeID {
 					slog.Info("Leader changed", "oldLeaderID", le.currentLeaderID, "newLeaderID", leaderID)
-					le.OnNewLeader(leaderID, ctx)
+					// TODO: ctx for previous onNewLeader should be cancelled
+					go le.OnNewLeader(leaderID, ctx)
 				}
 
 				// If the old leader was this node and it's no longer the leader
 				if le.IsLeader() && leaderID != le.NodeID {
 					slog.Info("Stopped leading due to leader changed", "nodeID", le.NodeID)
-					le.OnStoppedLeading()
+					go le.OnStoppedLeading()
 				}
 
 				le.currentLeaderID = leaderID
 			}
 
-			time.Sleep(2 * time.Second) // Poll interval
+			time.Sleep(2 * time.Second)
 		}
 	}
+
 }
 
 // isLeader checks if this node is the current leader.
