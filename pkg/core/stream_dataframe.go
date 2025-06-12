@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/functions/join"
@@ -352,29 +351,34 @@ func (sdf *StreamDataFrame) onNewLeader(newLeaderId string, ctx context.Context)
 	utils.Logger.Info("New leader detected", "node", sdf.NodeId, "newLeader", newLeaderId)
 	leaderIP := strings.Split(newLeaderId, "-")[0]
 	address := fmt.Sprintf("%s:%d", leaderIP, sdf.Configs.LeaderGRPCPort)
-	recChan, errChan := messaging.StreamRecordsFromLeader(ctx, address, sdf.NodeId)
+	recChan, recordReceivingErrChan := messaging.StreamRecordsFromLeader(ctx, address, sdf.NodeId)
+
+	// TODO(STR-002): Handle join which requires running the previous SDFs first
+	// Override input for first stage to only read from leader's record stream
+	if len(sdf.Stages) > 0 {
+		sdf.Stages[0].Input = recChan
+	}
+	for _, stage := range sdf.Stages {
+		utils.Logger.Info("Starting stage", "stageId", stage.Id, "name", sdf.Name)
+		go stage.Run(ctx)
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
 			utils.Logger.Info("Context cancelled, stopping record streaming")
 			return
-		case err := <-errChan:
+		case err, ok := <-recordReceivingErrChan:
+			if !ok {
+				utils.Logger.Info("Leader record receiving channel closed, stopping callback")
+				return
+			}
 			if err != nil {
 				utils.Logger.Error("Error receiving records from leader", "error", err)
 				sdf.ErrorStream <- fmt.Errorf("error receiving records from leader: %w", err)
 				return
 			}
-
-		case record, ok := <-recChan:
-			if !ok {
-				utils.Logger.Info("Receiving records from leader channel closed, stopping callback")
-				return
-			}
-			time.Sleep(time.Millisecond * 100) // Simulate processing delay
-			utils.Logger.Info("Received record from leader", "record", record)
 		}
-
 	}
 
 }

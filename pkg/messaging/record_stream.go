@@ -29,6 +29,8 @@ func (s *RecordStreamService) StreamRecords(req *StreamRequest, stream RecordStr
 			slog.Info("Client disconnected or context cancelled")
 			return stream.Context().Err()
 
+		// TODO(STR-001): Correctly assign the records to nodes; Currently first client reading from the channel
+		// will receive the records.
 		case record, ok := <-s.InputChan:
 			if !ok {
 				slog.Info("Record channel closed. Ending stream.")
@@ -51,7 +53,7 @@ func (s *RecordStreamService) StreamRecords(req *StreamRequest, stream RecordStr
 
 // StreamRecordsFromLeader connects to the leader's gRPC RecordStream service
 // and returns channels for receiving types.Record and errors.
-func StreamRecordsFromLeader(ctx context.Context, address, nodeID string) (<-chan types.Record, <-chan error) {
+func StreamRecordsFromLeader(ctx context.Context, address, nodeID string) (chan types.Record, <-chan error) {
 
 	recChan := make(chan types.Record)
 	errChan := make(chan error, 1)
