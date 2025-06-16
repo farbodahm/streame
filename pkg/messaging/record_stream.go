@@ -62,6 +62,7 @@ func StreamRecordsFromLeader(ctx context.Context, address, nodeID string) (chan 
 		defer close(errChan)
 
 		// TODO: Use TLS credentials in production
+		slog.Info("Dialing leader gRPC stream", "address", address, "node", nodeID)
 		conn, err := grpc.NewClient(
 			address,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -70,6 +71,7 @@ func StreamRecordsFromLeader(ctx context.Context, address, nodeID string) (chan 
 			errChan <- fmt.Errorf("failed to create gRPC client: %w", err)
 			return
 		}
+		slog.Info("Connected to leader gRPC", "address", address, "node", nodeID)
 		defer conn.Close()
 
 		client := NewRecordStreamClient(conn)
@@ -78,6 +80,7 @@ func StreamRecordsFromLeader(ctx context.Context, address, nodeID string) (chan 
 			errChan <- fmt.Errorf("error starting stream: %w", err)
 			return
 		}
+		slog.Info("Established gRPC record stream to leader", "node", nodeID)
 
 		for {
 			msg, err := stream.Recv()
