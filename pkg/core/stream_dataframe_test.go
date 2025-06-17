@@ -267,7 +267,6 @@ func TestStreamDataFrame_DistributedFilter_E2EWithOneWorker(t *testing.T) {
 	wDf := (&wSdf).Filter(functions.Filter{ColumnName: "value", Operator: functions.NOT_EQUAL, Value: "1"})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	go leaderDf.Execute(ctx)
 	time.Sleep(2 * time.Second)
 	go wDf.Execute(ctx)
@@ -304,6 +303,9 @@ func TestStreamDataFrame_DistributedFilter_E2EWithOneWorker(t *testing.T) {
 		assert.Equal(t, expected[i].Key, rec.Key, "record key mismatch at index %d", i)
 		assert.Equal(t, expected[i].Data, rec.Data, "record data mismatch at index %d", i)
 	}
+	// cancel leader's context so its gRPC server shuts down and frees the port
+	cancel()
+	time.Sleep(2 * time.Second)
 }
 
 func TestStreamDataFrame_DistributedFilter_E2EWithTwoWorkers(t *testing.T) {
@@ -411,5 +413,25 @@ func TestStreamDataFrame_DistributedFilter_E2EWithTwoWorkers(t *testing.T) {
 			}
 		}
 		assert.True(t, found, "Expected record with key %s not found in result at expected index %d", exp.Key, i)
+	}
+}
+
+// Test onStartedLeading reports a listen error when the GRPC port is invalid
+func TestStreamDataFrame_onStartedLeading_ListenFailure(t *testing.T) {
+	errCh := make(chan error, 1)
+	schema := Schema{Columns: Fields{"col": StringType}}
+	// Use an invalid port to force net.Listen failure
+	sdf := NewStreamDataFrame(make(chan Record), make(chan Record), errCh, schema, "test-stream", nil,
+		WithLeaderGRPCPort(-1),
+	)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	sdf.onStartedLeading(ctx)
+	select {
+	case err := <-errCh:
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to listen GRPC for leader")
+	default:
+		t.Fatal("expected error on listen failure, got none")
 	}
 }

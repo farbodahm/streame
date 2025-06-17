@@ -9,8 +9,8 @@
     - [Standalone (Non-Distributed) Mode](#standalone-non-distributed-mode)
     - [Distributed Mode](#distributed-mode)
   - [Final Workflow Expectations](#final-workflow-expectations)
-  - [Contributions](#contributions)
   - [CNCF Alignment](#cncf-alignment)
+  - [Contributions](#contributions)
 
 Streame is going to be a fault tolerant stream processor, Eventually!
 
@@ -145,14 +145,15 @@ shortly after having the main functionalities in place.
 - Load Test (Ex. K6S)
 - Fault Tolerance Test (Ex. chaos-mesh)
 
+## CNCF Alignment
+
+Streame is aligned with the CNCF ecosystem and leverages CNCF-hosted projects
+such as etcd, Kubernetes, Prometheus, and gRPC to deliver a cohesive streaming platform.
+
+
 ## Contributions
 
 This project is getting started as fun and for learning; and it may
 end up in something important to be used on Production; So feel free
 to contribute to it as you like ;)
 You can find the roadmap [here](https://github.com/users/farbodahm/projects/1).
-
-## CNCF Alignment
-
-Streame is aligned with the CNCF ecosystem and leverages CNCF-hosted projects
-such as etcd, Kubernetes, Prometheus, and gRPC to deliver a cohesive streaming platform.

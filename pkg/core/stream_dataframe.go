@@ -335,10 +335,20 @@ func (sdf *StreamDataFrame) onStartedLeading(ctx context.Context) {
 	}
 	messaging.RegisterRecordStreamServer(s, &server)
 
-	if err := s.Serve(lis); err != nil {
-		utils.Logger.Error("Failed to serve GRPC for leader", "error", err)
-		sdf.ErrorStream <- fmt.Errorf("failed to serve GRPC for leader: %w", err)
-		return
+	// serve in background and stop on context cancellation or fatal error
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- s.Serve(lis)
+	}()
+	select {
+	case <-ctx.Done():
+		utils.Logger.Info("Shutting down GRPC server for leader", "port", sdf.Configs.LeaderGRPCPort)
+		s.GracefulStop()
+	case err := <-serveErrCh:
+		if err != nil && err != grpc.ErrServerStopped {
+			utils.Logger.Error("Failed to serve GRPC for leader", "error", err)
+			sdf.ErrorStream <- fmt.Errorf("failed to serve GRPC for leader: %w", err)
+		}
 	}
 }
 
