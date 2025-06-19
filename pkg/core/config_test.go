@@ -13,7 +13,7 @@ import (
 )
 
 func TestStreamDataFrame_ConfigDefaultValues_DefaultValuesAssignedCorrectly(t *testing.T) {
-	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{}, "test-stream")
+	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{}, "test-stream", nil)
 
 	assert.Equal(t, sdf.Configs.LogLevel, slog.LevelInfo)
 	_, in_memory_ss := sdf.Configs.StateStore.(*state_store.InMemorySS)
@@ -22,6 +22,7 @@ func TestStreamDataFrame_ConfigDefaultValues_DefaultValuesAssignedCorrectly(t *t
 
 func TestStreamDataFrame_ConfigWithLogLevel_LogLevelAssignedCorrectly(t *testing.T) {
 	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{}, "test-stream",
+		nil,
 		WithLogLevel(slog.LevelError),
 	)
 
@@ -33,6 +34,7 @@ func TestStreamDataFrame_WithStateStore_StateStoreAssignedCorrectly(t *testing.T
 	defer os.RemoveAll(warehouse_path)
 	ss, _ := state_store.NewPebbleStateStore(warehouse_path, &pebble.Options{})
 	sdf := NewStreamDataFrame(nil, nil, nil, types.Schema{}, "test-stream",
+		nil,
 		WithStateStore(ss),
 	)
 

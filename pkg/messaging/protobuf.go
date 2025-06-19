@@ -103,56 +103,56 @@ func ProtocolBuffersToValueMap(data []byte) types.ValueMap {
 	return ProtoStructToValueMap(recordMessage.Data.GetStructValue())
 }
 
-// RecordToProtocolBuffers serializes a single record to Protobuf message
-func RecordToProtocolBuffers(record types.Record) ([]byte, error) {
-	// Data field
+// RecordToProtocolBuffersRecord converts a types.Record to a protobuf Record message.
+func RecordToProtocolBuffersRecord(record types.Record) (*Record, error) {
 	protoStruct, err := ValueMapToProtoStruct(record.Data)
 	if err != nil {
 		return nil, err
 	}
-	valueData := structpb.NewStructValue(&protoStruct)
 	recordData := &RecordData{
-		Data: valueData,
+		Data: structpb.NewStructValue(&protoStruct),
 	}
-
-	// Metadata field
 	metadataProto := &Metadata{
 		Stream:    record.Metadata.Stream,
 		Timestamp: timestamppb.New(record.Metadata.Timestamp),
 	}
-
 	recordProto := &Record{
 		Key:      record.Key,
 		Data:     recordData,
 		Metadata: metadataProto,
 	}
+	return recordProto, nil
+}
 
+// ProtocolBuffersRecordToRecord converts a protobuf Record message to a types.Record.
+func ProtocolBuffersRecordToRecord(recordProto *Record) (types.Record, error) {
+	valueMap := ProtoStructToValueMap(recordProto.Data.Data.GetStructValue())
+	metadata := types.Metadata{
+		Stream:    recordProto.Metadata.Stream,
+		Timestamp: recordProto.Metadata.Timestamp.AsTime(),
+	}
+	record := types.Record{
+		Key:      recordProto.Key,
+		Data:     valueMap,
+		Metadata: metadata,
+	}
+	return record, nil
+}
+
+// RecordToProtocolBuffers serializes a single record to Protobuf message
+func RecordToProtocolBuffers(record types.Record) ([]byte, error) {
+	recordProto, err := RecordToProtocolBuffersRecord(record)
+	if err != nil {
+		return nil, err
+	}
 	return proto.Marshal(recordProto)
 }
 
 // ProtocolBuffersToRecord unmarshals protocol buffer data into a Record
 func ProtocolBuffersToRecord(data []byte) (types.Record, error) {
 	var recordProto Record
-	err := proto.Unmarshal(data, &recordProto)
-	if err != nil {
+	if err := proto.Unmarshal(data, &recordProto); err != nil {
 		return types.Record{}, err
 	}
-
-	// Convert Data field
-	valueMap := ProtoStructToValueMap(recordProto.Data.Data.GetStructValue())
-
-	// Convert Metadata field
-	metadata := types.Metadata{
-		Stream:    recordProto.Metadata.Stream,
-		Timestamp: recordProto.Metadata.Timestamp.AsTime(),
-	}
-
-	// Create and return the Record
-	record := types.Record{
-		Key:      recordProto.Key,
-		Data:     valueMap,
-		Metadata: metadata,
-	}
-
-	return record, nil
+	return ProtocolBuffersRecordToRecord(&recordProto)
 }

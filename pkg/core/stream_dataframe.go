@@ -3,16 +3,30 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net"
+	"os"
 	"strings"
 
 	"github.com/farbodahm/streame/pkg/functions"
 	"github.com/farbodahm/streame/pkg/functions/join"
+	"github.com/farbodahm/streame/pkg/messaging"
 	"github.com/farbodahm/streame/pkg/state_store"
 	"github.com/farbodahm/streame/pkg/types"
 	"github.com/farbodahm/streame/pkg/utils"
 	"github.com/google/uuid"
+	"google.golang.org/grpc"
+
+	etcdv3 "go.etcd.io/etcd/client/v3"
 )
+
+// GetNodeId generates a unique node ID for the current process.
+// TODO: Make sure this is unique across all nodes in the cluster
+func GetNodeId(nodeIP string) string {
+	pid := os.Getpid()
+	return fmt.Sprintf("%s-%d", nodeIP, pid)
+}
 
 // Make sure StreamDataFrame implements DataFrame
 var _ DataFrame = &StreamDataFrame{}
@@ -26,6 +40,7 @@ type StreamDataFrame struct {
 	Stages       []Stage
 	Schema       types.Schema
 	Configs      *Config
+	NodeId       string
 
 	stateStore state_store.StateStore
 	rc         RuntimeConfig
@@ -33,6 +48,7 @@ type StreamDataFrame struct {
 	// Currently only `Join` operation requires this structure so that it can first run
 	// all of the previous SDFs before running itself.
 	previousExecutors []*StreamDataFrame
+	etcd              *etcdv3.Client
 }
 
 // NewStreamDataFrame creates a new StreamDataFrame with the given options
@@ -42,12 +58,16 @@ func NewStreamDataFrame(
 	errorStream chan error,
 	schema types.Schema,
 	streamName string,
+	etcd *etcdv3.Client,
 	options ...Option,
 ) StreamDataFrame {
 	// Create config with default values
 	config := Config{
-		LogLevel:   slog.LevelInfo,
-		StateStore: state_store.NewInMemorySS(),
+		LogLevel:                       slog.LevelInfo,
+		StateStore:                     state_store.NewInMemorySS(),
+		LeaderHeartbeatIntervalSeconds: 5,
+		LeaderFetchTimeoutSeconds:      2,
+		LeaderGRPCPort:                 50085,
 	}
 	// Functional Option pattern
 	for _, option := range options {
@@ -56,6 +76,9 @@ func NewStreamDataFrame(
 
 	utils.InitLogger(config.LogLevel)
 
+	if etcd != nil && config.NodeIP == "" {
+		panic("Node IP is not set. This is required for distributed mode.")
+	}
 	if _, ok := config.StateStore.(*state_store.InMemorySS); ok {
 		utils.Logger.Warn("Using in-memory state store. This is not suitable for production use.")
 	}
@@ -73,10 +96,12 @@ func NewStreamDataFrame(
 		Stages:       []Stage{},
 		Schema:       schema,
 		Configs:      &config,
+		NodeId:       GetNodeId(config.NodeIP),
 
 		rc:                rc,
 		stateStore:        config.StateStore,
 		previousExecutors: []*StreamDataFrame{},
+		etcd:              etcd,
 	}
 
 	// Only source streams need to have schema validation. When a SDF
@@ -138,6 +163,7 @@ func (sdf *StreamDataFrame) Join(other *StreamDataFrame, how join.JoinType, on j
 		merged_errors,
 		new_schema,
 		sdf.Name+"-"+other.Name+join.JoinedStreamSuffix,
+		sdf.etcd,
 	)
 	// TODO: Decide on how to pass configs
 	new_sdf.Configs = sdf.Configs
@@ -270,15 +296,9 @@ func (sdf *StreamDataFrame) addToStages(executor StageExecutor) {
 	sdf.Stages = append(sdf.Stages, stage)
 }
 
-// Execute starts the data processing.
-// It simply runs all of the stages.
-// It's a blocking call and returns when the context is cancelled or panics when an error occurs.
-func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
-	utils.Logger.Info("Executing processor", "name", sdf.Name, "len(stages)", len(sdf.Stages))
-	if len(sdf.Stages) == 0 {
-		return errors.New("no stages are created")
-	}
-
+// runStandalone runs the Streame in standalone mode.
+// It runs all the stages in parallel and waits for them to finish.
+func (sdf *StreamDataFrame) runStandalone(ctx context.Context) error {
 	// Execute previous SDFs which current SDF depends on first (if there are any)
 	for _, previous_sdf := range sdf.previousExecutors {
 		utils.Logger.Info("Executing previous SDF", "name", previous_sdf.Name)
@@ -298,6 +318,113 @@ func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
 			return nil // Exit the loop if the context is cancelled
 		}
 	}
+}
+
+func (sdf *StreamDataFrame) onStartedLeading(ctx context.Context) {
+	utils.Logger.Info("Starting GRPC server for leader", "port", sdf.Configs.LeaderGRPCPort)
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", sdf.Configs.LeaderGRPCPort))
+	if err != nil {
+		utils.Logger.Error("Failed to listen GRPC for leader", "error", err)
+		sdf.ErrorStream <- fmt.Errorf("failed to listen GRPC for leader: %w", err)
+		return
+	}
+	s := grpc.NewServer()
+
+	server := messaging.RecordStreamService{
+		InputChan: sdf.SourceStream,
+	}
+	messaging.RegisterRecordStreamServer(s, &server)
+
+	// serve in background and stop on context cancellation or fatal error
+	serveErrCh := make(chan error, 1)
+	go func() {
+		serveErrCh <- s.Serve(lis)
+	}()
+	select {
+	case <-ctx.Done():
+		utils.Logger.Info("Shutting down GRPC server for leader", "port", sdf.Configs.LeaderGRPCPort)
+		s.GracefulStop()
+	case err := <-serveErrCh:
+		if err != nil && err != grpc.ErrServerStopped {
+			utils.Logger.Error("Failed to serve GRPC for leader", "error", err)
+			sdf.ErrorStream <- fmt.Errorf("failed to serve GRPC for leader: %w", err)
+		}
+	}
+}
+
+func (sdf *StreamDataFrame) onStoppedLeading() {
+	utils.Logger.Info("Stopped leading", "node", sdf.NodeId)
+	// TODO: Implement logic to handle when this node stops being the leader
+}
+
+func (sdf *StreamDataFrame) onNewLeader(newLeaderId string, ctx context.Context) {
+	utils.Logger.Info("New leader detected", "node", sdf.NodeId, "newLeader", newLeaderId)
+	leaderIP := strings.Split(newLeaderId, "-")[0]
+	address := fmt.Sprintf("%s:%d", leaderIP, sdf.Configs.LeaderGRPCPort)
+	recChan, recordReceivingErrChan := messaging.StreamRecordsFromLeader(ctx, address, sdf.NodeId)
+
+	// TODO(STR-002): Handle join which requires running the previous SDFs first
+	// Override input for first stage to only read from leader's record stream
+	if len(sdf.Stages) > 0 {
+		sdf.Stages[0].Input = recChan
+	}
+	for _, stage := range sdf.Stages {
+		utils.Logger.Info("Starting stage", "stageId", stage.Id, "name", sdf.Name)
+		go stage.Run(ctx)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			utils.Logger.Info("Context cancelled, stopping record streaming")
+			return
+		case err, ok := <-recordReceivingErrChan:
+			if !ok {
+				utils.Logger.Info("Leader record receiving channel closed, stopping callback")
+				return
+			}
+			if err != nil {
+				utils.Logger.Error("Error receiving records from leader", "error", err)
+				sdf.ErrorStream <- fmt.Errorf("error receiving records from leader: %w", err)
+				return
+			}
+		}
+	}
+
+}
+
+// runDistributed runs the Streame in distributed mode.
+func (sdf *StreamDataFrame) runDistributed(ctx context.Context) error {
+	leaderElector, err := NewLeaderElector(
+		sdf.NodeId,
+		sdf.etcd,
+		sdf.onStartedLeading,
+		sdf.onStoppedLeading,
+		sdf.onNewLeader,
+		sdf.ErrorStream,
+	)
+	if err != nil {
+		return err
+	}
+
+	return leaderElector.Start(ctx)
+}
+
+// Execute starts the data processing.
+// It's a blocking call and returns when the context is cancelled or panics when an error occurs.
+func (sdf *StreamDataFrame) Execute(ctx context.Context) error {
+	utils.Logger.Info("Executing processor", "name", sdf.Name, "len(stages)", len(sdf.Stages))
+	if len(sdf.Stages) == 0 {
+		return errors.New("no stages are created")
+	}
+
+	if sdf.etcd == nil {
+		utils.Logger.Info("Running in standalone mode")
+		return sdf.runStandalone(ctx)
+	}
+
+	utils.Logger.Info("Running in distributed mode", "nodeId", sdf.NodeId)
+	return sdf.runDistributed(ctx)
 }
 
 // GetSchema returns the schema of the DataFrame

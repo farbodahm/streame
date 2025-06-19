@@ -26,7 +26,10 @@ type Stage struct {
 func (s *Stage) Run(ctx context.Context) {
 	for {
 		select {
-		case data := <-s.Input:
+		case data, ok := <-s.Input:
+			if !ok {
+				return
+			}
 			processedData, err := s.Executor(ctx, data)
 			if err != nil {
 				s.Error <- err

@@ -153,7 +153,7 @@ func TestJoin_SimpleStreamTableJoin_ShouldJoinStreamRecordToTableRecord(t *testi
 			"last_name":  StringType,
 		},
 	}
-	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data
 	order_input := make(chan Record)
@@ -165,7 +165,7 @@ func TestJoin_SimpleStreamTableJoin_ShouldJoinStreamRecordToTableRecord(t *testi
 			"amount":     IntType,
 		},
 	}
-	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	// Logic to test
 	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*core.StreamDataFrame)
@@ -226,7 +226,7 @@ func TestJoin_InvalidJoinCondition_ShouldPanic(t *testing.T) {
 			"last_name":  StringType,
 		},
 	}
-	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data with a schema that does not match the join condition
 	order_input := make(chan Record)
@@ -238,7 +238,7 @@ func TestJoin_InvalidJoinCondition_ShouldPanic(t *testing.T) {
 			"amount":   IntType,
 		},
 	}
-	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	// Invalid join condition that references a column not present in the order schema
 	invalid_condition := join.JoinCondition{LeftKey: "email", RightKey: "non_existent_column"}
@@ -265,7 +265,7 @@ func TestJoin_MergeSchemaWithDuplicateColumns_ShouldPanic(t *testing.T) {
 			"common_field": StringType, // Column that will cause a conflict
 		},
 	}
-	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data with a conflicting column name
 	order_input := make(chan Record)
@@ -278,7 +278,7 @@ func TestJoin_MergeSchemaWithDuplicateColumns_ShouldPanic(t *testing.T) {
 			"common_field": StringType, // Conflicting column name
 		},
 	}
-	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	// Valid join condition, but schemas have conflicting column names
 	valid_condition := join.JoinCondition{LeftKey: "email", RightKey: "order_id"}
@@ -304,7 +304,7 @@ func TestJoin_StreamRecordWithoutMatch_InnerJoinShouldNotProduceResult(t *testin
 			"last_name":  StringType,
 		},
 	}
-	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data
 	order_input := make(chan Record)
@@ -316,7 +316,7 @@ func TestJoin_StreamRecordWithoutMatch_InnerJoinShouldNotProduceResult(t *testin
 			"amount":     IntType,
 		},
 	}
-	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	// Logic to test
 	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*core.StreamDataFrame)
@@ -353,7 +353,7 @@ func TestJoin_TableRecordWithoutMatch_InnerJoinShouldNotProduceResult(t *testing
 			"last_name":  StringType,
 		},
 	}
-	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data
 	order_input := make(chan Record)
@@ -365,7 +365,7 @@ func TestJoin_TableRecordWithoutMatch_InnerJoinShouldNotProduceResult(t *testing
 			"amount":     IntType,
 		},
 	}
-	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	// Logic to test
 	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*core.StreamDataFrame)
@@ -403,7 +403,7 @@ func TestJoin_UnorderedDelayedStream_InnerJoinShouldWorkIfWeFirstGetStreamRecord
 			"last_name":  StringType,
 		},
 	}
-	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream")
+	user_sdf := core.NewStreamDataFrame(user_input, user_output, user_errors, user_schema, "user-stream", nil)
 
 	// Order Data
 	order_input := make(chan Record)
@@ -415,7 +415,7 @@ func TestJoin_UnorderedDelayedStream_InnerJoinShouldWorkIfWeFirstGetStreamRecord
 			"amount":     IntType,
 		},
 	}
-	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream")
+	orders_sdf := core.NewStreamDataFrame(order_input, orders_output, orders_errors, orders_schema, "orders-stream", nil)
 
 	// Logic to test
 	joined_sdf := orders_sdf.Join(&user_sdf, join.Inner, join.JoinCondition{LeftKey: "user_email", RightKey: "email"}, join.StreamTable).(*core.StreamDataFrame)

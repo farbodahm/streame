@@ -24,3 +24,13 @@ message Record {
   RecordData data = 2;   // Data of the record
   Metadata metadata = 3; // Metadata for the record
 }
+
+// Request message to initiate stream
+message StreamRequest {
+  string node_id = 1;
+}
+
+// RecordStream is the server for sending records from master node to receivers.
+service RecordStream {
+  rpc StreamRecords(StreamRequest) returns (stream Record);
+}

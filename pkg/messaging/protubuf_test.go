@@ -357,6 +357,79 @@ func TestProtocolBuffersToRecord_InvalidDataField_PanicsWithError(t *testing.T) 
 	}, "Expected panic with error: %s", expectedError)
 }
 
+func TestRecordToProtocolBuffersRecord_ValidRecord_ReturnsProtoRecord(t *testing.T) {
+	now := time.Now()
+	record := Record{
+		Key: "key1",
+		Data: ValueMap{
+			"first_name": String{Val: "foobar"},
+			"last_name":  String{Val: "random_lastname"},
+			"age":        Integer{Val: 23},
+		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: now,
+		},
+	}
+
+	protoRec, err := messaging.RecordToProtocolBuffersRecord(record)
+	assert.Nil(t, err)
+
+	assert.Equal(t, record.Key, protoRec.Key)
+	assert.Equal(t, record.Metadata.Stream, protoRec.Metadata.Stream)
+	assert.True(t, timestamppb.New(record.Metadata.Timestamp).AsTime().Equal(protoRec.Metadata.Timestamp.AsTime()))
+
+	expectedStruct := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
+		},
+	}
+	assert.Equal(t, expectedStruct.Fields, protoRec.Data.Data.GetStructValue().Fields)
+}
+
+func TestProtocolBuffersRecordToRecord_ValidProtoRecord_ReturnsRecord(t *testing.T) {
+	now := time.Now()
+	expectedRecord := Record{
+		Key: "key1",
+		Data: ValueMap{
+			"first_name": String{Val: "foobar"},
+			"last_name":  String{Val: "random_lastname"},
+			"age":        Integer{Val: 23},
+		},
+		Metadata: Metadata{
+			Stream:    "test_stream",
+			Timestamp: now,
+		},
+	}
+
+	protoStruct := &structpb.Struct{
+		Fields: map[string]*structpb.Value{
+			"first_name": structpb.NewStringValue("foobar"),
+			"last_name":  structpb.NewStringValue("random_lastname"),
+			"age":        structpb.NewNumberValue(23),
+		},
+	}
+	value := structpb.NewStructValue(protoStruct)
+	recordData := &messaging.RecordData{Data: value}
+	protoRec := &messaging.Record{
+		Key:  expectedRecord.Key,
+		Data: recordData,
+		Metadata: &messaging.Metadata{
+			Stream:    expectedRecord.Metadata.Stream,
+			Timestamp: timestamppb.New(expectedRecord.Metadata.Timestamp),
+		},
+	}
+
+	result, err := messaging.ProtocolBuffersRecordToRecord(protoRec)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedRecord.Key, result.Key)
+	assert.Equal(t, expectedRecord.Data, result.Data)
+	assert.Equal(t, expectedRecord.Metadata.Stream, result.Metadata.Stream)
+	assert.True(t, expectedRecord.Metadata.Timestamp.Equal(result.Metadata.Timestamp))
+}
+
 func TestValueMapToProtoStruct_WithArray_ConvertsSuccessfully(t *testing.T) {
 	record := Record{
 		Key: "key1",
